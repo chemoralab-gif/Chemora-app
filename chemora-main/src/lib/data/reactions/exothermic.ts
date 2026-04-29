@@ -82,6 +82,7 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   // ════════════════════════════════════════════════════════════════════════════════════════
   // ADDED 500 MORE REACTIONS - SAME FIELD FORMAT, EXISTING EFFECTS ONLY
   // ════════════════════════════════════════════════════════════════════════════════════════
+  { reactants: ["Mg", "O₂"], products: "MgO", equation: "2Mg + O₂ → 2MgO", effect: "bright-light", description: "Mg reacts with oxygen to form MgO, releasing heat and visible reaction energy.", intensity: 7, enthalpyChange: -1204, isExothermic: true, temperatureChange: 204, heatReleased: 1204 },  
   { reactants: ["Li", "O₂"], products: "Li₂O", equation: "4Li + O₂ → 2Li₂O", effect: "fire", description: "Li reacts with oxygen to form Li₂O, releasing heat and visible reaction energy.", intensity: 4, enthalpyChange: -1190, isExothermic: true, temperatureChange: 193, heatReleased: 1190 },
   { reactants: ["Na", "O₂"], products: "Na₂O₂", equation: "2Na + O₂ → Na₂O₂", effect: "fire", description: "Na reacts with oxygen to form Na₂O₂, releasing heat and visible reaction energy.", intensity: 8, enthalpyChange: -510, isExothermic: true, temperatureChange: 98, heatReleased: 510 },
   { reactants: ["K", "O₂"], products: "KO₂", equation: "K + O₂ → KO₂", effect: "explosion", description: "K reacts with oxygen to form KO₂, releasing heat and visible reaction energy.", intensity: 8, enthalpyChange: -284, isExothermic: true, temperatureChange: 69, heatReleased: 284 },
