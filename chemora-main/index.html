@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- DNS prefetch for potential external resources -->
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    
+    <!-- TODO: Set the document title to the name of your application -->
+    <title>Chemora</title>
+    <meta name="description" content="Every Atom is Yours">
+    <meta name="author" content="Lovable" />
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" type="image/png" href="/chemora-logo.png" />
+
+    <!-- TODO: Update og:title to match your application name -->
+    
+    
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c7e7ee2d-4204-4ed5-a78b-b08f10c05658/id-preview-b6fe4c72--ee858c7c-4ae8-4ce5-bb93-00e716f3415f.lovable.app-1772123023052.png">
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@Lovable" />
+    <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c7e7ee2d-4204-4ed5-a78b-b08f10c05658/id-preview-b6fe4c72--ee858c7c-4ae8-4ce5-bb93-00e716f3415f.lovable.app-1772123023052.png">
+    
+  
+  
+  
+  <meta property="og:title" content="Chemora">
+  <meta name="twitter:title" content="Chemora">
+  <meta property="og:description" content="Every Atom is Yours">
+  <meta name="twitter:description" content="Every Atom is Yours">
+</head>
+
+  <body>
+    <!-- Loading Screen Overlay -->
+    <div id="loading-screen" style="
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f0f;
+      transition: opacity 0.5s ease-out;
+      opacity: 1;
+    ">
+      <!-- Atomic Loader -->
+      <div style="
+        height: 20rem;
+        width: 20rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+      ">
+        <div style="
+          position: relative;
+          width: 15rem;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 15rem;
+          animation: rotate 3s infinite;
+        ">
+          <!-- Nucleus -->
+          <div style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: linear-gradient(#ffffff, #e0e0e0);
+            height: 2rem;
+            width: 2rem;
+            animation: pulse-glow 1s linear infinite;
+          "></div>
+
+          <!-- Electron 1 -->
+          <div style="
+            position: absolute;
+            width: 15rem;
+            height: 6rem;
+            border-radius: 50%;
+            border: 0.3rem solid #ffffff;
+            animation: revolve 1s linear infinite;
+          "></div>
+
+          <!-- Electron 2 -->
+          <div style="
+            position: absolute;
+            width: 15rem;
+            height: 6rem;
+            border-radius: 50%;
+            border: 0.3rem solid #ffffff;
+            transform: rotate(60deg);
+            animation: revolve 1s linear infinite -0.66s;
+          "></div>
+
+          <!-- Electron 3 -->
+          <div style="
+            position: absolute;
+            width: 15rem;
+            height: 6rem;
+            border-radius: 50%;
+            border: 0.3rem solid #ffffff;
+            transform: rotate(-60deg);
+            animation: revolve 1s linear infinite;
+          "></div>
+        </div>
+      </div>
+
+      <!-- Loading Message -->
+      <div style="
+        margin-top: 2rem;
+        text-align: center;
+      ">
+        <p style="
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #ffffff;
+          height: 1.5rem;
+          animation: fadeInOut 6s infinite;
+        " id="loading-text">Preparing your virtual lab station...</p>
+      </div>
+    </div>
+
+    <div id="root"></div>
+
+    <style>
+      @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg) scale3d(1.1, 1.1, 0); }
+      }
+
+      @keyframes revolve {
+        0% { border-color: #ffffff; border-right: transparent; }
+        25% { border-color: #ffffff; border-bottom-color: transparent; }
+        50% { border-color: #ffffff; border-left-color: transparent; }
+        75% { border-color: #ffffff; border-top-color: transparent; }
+        100% { border-color: #ffffff; border-right-color: transparent; }
+      }
+
+      @keyframes pulse-glow {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 1; }
+      }
+
+      @keyframes fadeInOut {
+        0% { opacity: 0; }
+        10% { opacity: 1; }
+        33% { opacity: 1; }
+        43% { opacity: 0; }
+        53% { opacity: 0; }
+        63% { opacity: 1; }
+        76% { opacity: 1; }
+        86% { opacity: 0; }
+        100% { opacity: 0; }
+      }
+    </style>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

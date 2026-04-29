@@ -1,0 +1,188 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [
+3 0 R 
+4 0 R 
+5 0 R 
+6 0 R 
+7 0 R 
+8 0 R 
+] /Count 6 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> /MediaBox [0 0 595 842] /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 957 >>
+stream
+BT /F1 18 Tf 50 750 Td (Chemistry Simulator) Tj ET
+BT /F1 13 Tf 50 722 Td (Complete Reference Guide) Tj ET
+BT /F2 8 Tf 50 692 Td (Generated: 2026-04-17 22:27:35) Tj ET
+BT /F2 8 Tf 50 681 Td (Features: Elements | Compounds | Reactions | Thermal Analysis) Tj ET
+BT /F1 11 Tf 50 642 Td (Document Overview) Tj ET
+BT /F2 8 Tf 50 624 Td (This PDF contains a comprehensive reference for the Chemistry Simulator including:) Tj ET
+BT /F2 8 Tf 65 613 Td (• All chemical elements with atomic properties) Tj ET
+BT /F2 8 Tf 65 602 Td (• Common compounds and their formulas) Tj ET
+BT /F2 8 Tf 65 591 Td (• Reaction data with thermal properties) Tj ET
+BT /F2 8 Tf 65 580 Td (• Enthalpy changes \(H\) and temperature changes \(T\)) Tj ET
+BT /F2 8 Tf 65 569 Td (• Classification of exothermic and endothermic reactions) Tj ET
+BT /F2 8 Tf 50 543 Td (Total Elements: 20) Tj ET
+BT /F2 8 Tf 50 532 Td (Total Compounds: 12) Tj ET
+BT /F2 8 Tf 50 521 Td (Total Reactions: 10) Tj ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> /MediaBox [0 0 595 842] /Contents 10 0 R >>
+endobj
+10 0 obj
+<< /Length 1552 >>
+stream
+BT /F1 18 Tf 50 780 Td (Chemical Elements) Tj ET
+BT /F1 11 Tf 50 734 Td (Metals) Tj ET
+BT /F2 8 Tf 65 716 Td (Fe - Iron | Atomic #: 26 | Mass: 55.85) Tj ET
+BT /F2 8 Tf 65 705 Td (Cu - Copper | Atomic #: 29 | Mass: 63.55) Tj ET
+BT /F2 8 Tf 65 694 Td (Zn - Zinc | Atomic #: 30 | Mass: 65.39) Tj ET
+BT /F2 8 Tf 65 683 Td (Al - Aluminum | Atomic #: 13 | Mass: 26.98) Tj ET
+BT /F2 8 Tf 65 672 Td (Na - Sodium | Atomic #: 11 | Mass: 22.99) Tj ET
+BT /F2 8 Tf 65 661 Td (K - Potassium | Atomic #: 19 | Mass: 39.1) Tj ET
+BT /F2 8 Tf 65 650 Td (Ca - Calcium | Atomic #: 20 | Mass: 40.08) Tj ET
+BT /F2 8 Tf 65 639 Td (Mg - Magnesium | Atomic #: 12 | Mass: 24.31) Tj ET
+BT /F2 8 Tf 65 628 Td (Au - Gold | Atomic #: 79 | Mass: 196.97) Tj ET
+BT /F2 8 Tf 65 617 Td (Ag - Silver | Atomic #: 47 | Mass: 107.87) Tj ET
+BT /F2 8 Tf 65 606 Td (Pt - Platinum | Atomic #: 78 | Mass: 195.08) Tj ET
+BT /F1 11 Tf 50 582 Td (Non-Metals) Tj ET
+BT /F2 8 Tf 65 564 Td (H - Hydrogen | Atomic #: 1 | Mass: 1.008) Tj ET
+BT /F2 8 Tf 65 553 Td (C - Carbon | Atomic #: 6 | Mass: 12.01) Tj ET
+BT /F2 8 Tf 65 542 Td (N - Nitrogen | Atomic #: 7 | Mass: 14.01) Tj ET
+BT /F2 8 Tf 65 531 Td (O - Oxygen | Atomic #: 8 | Mass: 16.0) Tj ET
+BT /F2 8 Tf 65 520 Td (S - Sulfur | Atomic #: 16 | Mass: 32.07) Tj ET
+BT /F2 8 Tf 65 509 Td (P - Phosphorus | Atomic #: 15 | Mass: 30.97) Tj ET
+BT /F2 8 Tf 65 498 Td (Cl - Chlorine | Atomic #: 17 | Mass: 35.45) Tj ET
+BT /F2 8 Tf 65 487 Td (Br - Bromine | Atomic #: 35 | Mass: 79.9) Tj ET
+BT /F2 8 Tf 65 476 Td (I - Iodine | Atomic #: 53 | Mass: 126.9) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> /MediaBox [0 0 595 842] /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 779 >>
+stream
+BT /F1 18 Tf 50 780 Td (Chemical Compounds) Tj ET
+BT /F2 8 Tf 65 742 Td (H2O \(Water\) [OXIDE]) Tj ET
+BT /F2 8 Tf 65 731 Td (CO2 \(Carbon Dioxide\) [OXIDE]) Tj ET
+BT /F2 8 Tf 65 720 Td (NaCl \(Sodium Chloride\) [SALT]) Tj ET
+BT /F2 8 Tf 65 709 Td (HCl \(Hydrochloric Acid\) [ACID]) Tj ET
+BT /F2 8 Tf 65 698 Td (H2SO4 \(Sulfuric Acid\) [ACID]) Tj ET
+BT /F2 8 Tf 65 687 Td (HNO3 \(Nitric Acid\) [ACID]) Tj ET
+BT /F2 8 Tf 65 676 Td (NaOH \(Sodium Hydroxide\) [BASE]) Tj ET
+BT /F2 8 Tf 65 665 Td (KOH \(Potassium Hydroxide\) [BASE]) Tj ET
+BT /F2 8 Tf 65 654 Td (NH3 \(Ammonia\) [BASE]) Tj ET
+BT /F2 8 Tf 65 643 Td (CuSO4 \(Copper Sulfate\) [SALT]) Tj ET
+BT /F2 8 Tf 65 632 Td (FeCl3 \(Iron\(III\) Chloride\) [SALT]) Tj ET
+BT /F2 8 Tf 65 621 Td (AgNO3 \(Silver Nitrate\) [SALT]) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> /MediaBox [0 0 595 842] /Contents 12 0 R >>
+endobj
+12 0 obj
+<< /Length 1594 >>
+stream
+BT /F1 18 Tf 50 780 Td (Chemical Reactions - Thermal Data) Tj ET
+BT /F1 11 Tf 50 734 Td (High Energy Reactions \(Exothermic\)) Tj ET
+BT /F2 7.5 Tf 65 716 Td (Reaction: K + H2O) Tj ET
+BT /F2 7.5 Tf 70 706 Td (Equation: 2K + 2H2O -> 2KOH + H2) Tj ET
+BT /F2 7.5 Tf 70 696 Td (H = -393 kJ/mol | T = ~150C) Tj ET
+BT /F2 7.5 Tf 65 684 Td (Reaction: Na + H2O) Tj ET
+BT /F2 7.5 Tf 70 674 Td (Equation: 2Na + 2H2O -> 2NaOH + H2) Tj ET
+BT /F2 7.5 Tf 70 664 Td (H = -368 kJ/mol | T = ~130C) Tj ET
+BT /F2 7.5 Tf 65 652 Td (Reaction: Mg + O2) Tj ET
+BT /F2 7.5 Tf 70 642 Td (Equation: 2Mg + O2 -> 2MgO) Tj ET
+BT /F2 7.5 Tf 70 632 Td (H = -1204 kJ/mol | T = ~200C) Tj ET
+BT /F2 7.5 Tf 65 620 Td (Reaction: H2 + O2) Tj ET
+BT /F2 7.5 Tf 70 610 Td (Equation: 2H2 + O2 -> 2H2O) Tj ET
+BT /F2 7.5 Tf 70 600 Td (H = -285 kJ/mol | T = ~280C) Tj ET
+BT /F2 7.5 Tf 65 588 Td (Reaction: C + O2) Tj ET
+BT /F2 7.5 Tf 70 578 Td (Equation: C + O2 -> CO2) Tj ET
+BT /F2 7.5 Tf 70 568 Td (H = -393 kJ/mol | T = ~85C) Tj ET
+BT /F1 11 Tf 50 548 Td (Medium Energy Reactions) Tj ET
+BT /F2 7.5 Tf 65 530 Td (Reaction: Mg + HCl) Tj ET
+BT /F2 7.5 Tf 70 520 Td (Equation: Mg + 2HCl -> MgCl2 + H2) Tj ET
+BT /F2 7.5 Tf 70 510 Td (H = -99 kJ/mol | T = ~35C) Tj ET
+BT /F2 7.5 Tf 65 498 Td (Reaction: Zn + HCl) Tj ET
+BT /F2 7.5 Tf 70 488 Td (Equation: Zn + 2HCl -> ZnCl2 + H2) Tj ET
+BT /F2 7.5 Tf 70 478 Td (H = -102 kJ/mol | T = ~38C) Tj ET
+BT /F2 7.5 Tf 65 466 Td (Reaction: NaHCO3 + CH3COOH) Tj ET
+BT /F2 7.5 Tf 70 456 Td (Equation: NaHCO3 + CH3COOH -> NaCH3COO + H2O + CO2) Tj ET
+BT /F2 7.5 Tf 70 446 Td (H = -56 kJ/mol | T = ~12C) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> /MediaBox [0 0 595 842] /Contents 13 0 R >>
+endobj
+13 0 obj
+<< /Length 395 >>
+stream
+BT /F1 11 Tf 50 772 Td (Other Reactions) Tj ET
+BT /F2 7.5 Tf 65 754 Td (Reaction: Fe + O2) Tj ET
+BT /F2 7.5 Tf 70 744 Td (Equation: 4Fe + 3O2 -> 2Fe2O3) Tj ET
+BT /F2 7.5 Tf 70 734 Td (H = -1648 kJ/mol | T = ~85C) Tj ET
+BT /F2 7.5 Tf 65 722 Td (Reaction: NaOH + HCl) Tj ET
+BT /F2 7.5 Tf 70 712 Td (Equation: NaOH + HCl -> NaCl + H2O) Tj ET
+BT /F2 7.5 Tf 70 702 Td (H = -57 kJ/mol | T = ~8C) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> /MediaBox [0 0 595 842] /Contents 14 0 R >>
+endobj
+14 0 obj
+<< /Length 1469 >>
+stream
+BT /F1 18 Tf 50 780 Td (Thermal Reference) Tj ET
+BT /F1 11 Tf 50 734 Td (Key Thermal Concepts) Tj ET
+BT /F2 8 Tf 65 716 Td (Exothermic Reaction: Releases heat to surroundings \(H < 0\)) Tj ET
+BT /F2 8 Tf 65 705 Td (Endothermic Reaction: Absorbs heat from surroundings \(H > 0\)) Tj ET
+BT /F2 8 Tf 65 694 Td (Enthalpy Change \(H\): Heat energy change per mole) Tj ET
+BT /F2 8 Tf 65 683 Td (Temperature Change \(T\): Predicted temperature increase/decrease) Tj ET
+BT /F1 11 Tf 50 654 Td (Energy Classifications) Tj ET
+BT /F2 8 Tf 65 636 Td (High Energy: T > 100C | Violent reactions \(explosions, intense fires\)) Tj ET
+BT /F2 8 Tf 65 625 Td (Medium Energy: 40C < T <= 100C | Vigorous reactions with significant heat) Tj ET
+BT /F2 8 Tf 65 614 Td (Low Energy: 0C < T <= 40C | Mild reactions with gentle heat release) Tj ET
+BT /F2 8 Tf 65 603 Td (No Energy: T = 0C | No reaction or color-change only) Tj ET
+BT /F1 11 Tf 50 574 Td (Chemistry Simulator Features) Tj ET
+BT /F2 8 Tf 65 556 Td (Real-time thermal simulation with accurate calculations) Tj ET
+BT /F2 8 Tf 65 545 Td (Interactive reaction visualization) Tj ET
+BT /F2 8 Tf 65 534 Td (Laboratory apparatus simulation) Tj ET
+BT /F2 8 Tf 65 523 Td (Educational calorimetry experiments) Tj ET
+BT /F1 11 Tf 50 489 Td (Statistics) Tj ET
+BT /F2 8 Tf 65 471 Td (Total Chemical Substances: 32) Tj ET
+BT /F2 8 Tf 65 460 Td (Combinatorial space: >10^20) Tj ET
+BT /F2 8 Tf 65 449 Td (Exothermic Reactions Documented: 8/10) Tj ET
+endstream
+endobj
+xref
+0 15
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000153 00000 n
+0000000390 00000 n
+0000001398 00000 n
+0000001636 00000 n
+0000003241 00000 n
+0000003479 00000 n
+0000004310 00000 n
+0000004548 00000 n
+0000006195 00000 n
+0000006433 00000 n
+0000006880 00000 n
+0000007118 00000 n
+trailer
+<< /Size 15 /Root 1 0 R >>
+startxref
+8640
+%%EOF
