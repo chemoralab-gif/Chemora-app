@@ -583,10 +583,7 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["Zn", "Br₂"], products: "ZnBr₂", equation: "Zn + Br₂ → ZnBr₂", effect: "fire", description: "Zn reacts with Br₂ to form ZnBr₂, releasing heat.", intensity: 8, enthalpyChange: -328, isExothermic: true, temperatureChange: 273, heatReleased: 328 },
   { reactants: ["Mg", "I₂"], products: "MgI₂", equation: "Mg + I₂ → MgI₂", effect: "fire", description: "Mg reacts with I₂ to form MgI₂, releasing heat.", intensity: 9, enthalpyChange: -365, isExothermic: true, temperatureChange: 282, heatReleased: 365 },
 
-  // ════════════════════════════════════════════════════════════════════════════════════════
-  // ADDED 300 ADDITIONAL REACTIONS - SAME FIELD FORMAT, EXISTING EFFECTS ONLY
-  // ════════════════════════════════════════════════════════════════════════════════════════
-  // ── ADDED METAL COMBUSTION / OXIDATION REACTIONS ──
+  // ── METAL COMBUSTION / OXIDATION REACTIONS ──
   { reactants: ["Li", "O₂"], products: "Li₂O", equation: "4Li + O₂ → 2Li₂O", effect: "fire", description: "Li burns in oxygen to form Li₂O, releasing heat and visible flame energy.", intensity: 4, enthalpyChange: -598, isExothermic: true, temperatureChange: 80, heatReleased: 598 },
   { reactants: ["Na", "O₂"], products: "Na₂O₂", equation: "2Na + O₂ → Na₂O₂", effect: "fire", description: "Na burns in oxygen to form Na₂O₂, releasing heat and visible flame energy.", intensity: 5, enthalpyChange: -450, isExothermic: true, temperatureChange: 87, heatReleased: 450 },
   { reactants: ["K", "O₂"], products: "KO₂", equation: "K + O₂ → KO₂", effect: "explosion", description: "K burns in oxygen to form KO₂, releasing heat and visible flame energy.", intensity: 6, enthalpyChange: -284, isExothermic: true, temperatureChange: 94, heatReleased: 284 },
@@ -648,7 +645,7 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["Ba", "O₂"], products: "BaO", equation: "2Ba + O₂ → 2BaO", effect: "explosion", description: "Ba burns in oxygen to form BaO, releasing heat and visible flame energy.", intensity: 6, enthalpyChange: -1120, isExothermic: true, temperatureChange: 146, heatReleased: 1120 },
   { reactants: ["Sr", "O₂"], products: "SrO", equation: "2Sr + O₂ → 2SrO", effect: "fire", description: "Sr burns in oxygen to form SrO, releasing heat and visible flame energy.", intensity: 7, enthalpyChange: -1196, isExothermic: true, temperatureChange: 153, heatReleased: 1196 },
 
-  // ── ADDED METAL + HALOGEN REACTIONS ──
+  // ── METAL + HALOGEN REACTIONS ──
   { reactants: ["Na", "Cl₂"], products: "NaCl", equation: "Na + Cl₂ → NaCl", effect: "fire", description: "Na reacts with Cl₂ to form NaCl, releasing heat in a direct combination reaction.", intensity: 4, enthalpyChange: -180, isExothermic: true, temperatureChange: 70, heatReleased: 180 },
   { reactants: ["K", "Cl₂"], products: "KCl", equation: "K + Cl₂ → KCl", effect: "explosion", description: "K reacts with Cl₂ to form KCl, releasing heat in a direct combination reaction.", intensity: 5, enthalpyChange: -233, isExothermic: true, temperatureChange: 81, heatReleased: 233 },
   { reactants: ["Li", "F₂"], products: "LiF", equation: "Li + F₂ → LiF", effect: "explosion", description: "Li reacts with F₂ to form LiF, releasing heat in a direct combination reaction.", intensity: 6, enthalpyChange: -286, isExothermic: true, temperatureChange: 92, heatReleased: 286 },
@@ -710,7 +707,7 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["Ba", "Cl₂"], products: "BaCl₂", equation: "Ba + Cl₂ → BaCl₂", effect: "fire", description: "Ba reacts with Cl₂ to form BaCl₂, releasing heat in a direct combination reaction.", intensity: 6, enthalpyChange: -854, isExothermic: true, temperatureChange: 388, heatReleased: 854 },
   { reactants: ["Sr", "Cl₂"], products: "SrCl₂", equation: "Sr + Cl₂ → SrCl₂", effect: "fire", description: "Sr reacts with Cl₂ to form SrCl₂, releasing heat in a direct combination reaction.", intensity: 7, enthalpyChange: -907, isExothermic: true, temperatureChange: 79, heatReleased: 907 },
 
-  // ── ADDED ORGANIC COMBUSTION REACTIONS ──
+  // ── ORGANIC COMBUSTION REACTIONS ──
   { reactants: ["CH₄", "O₂"], products: "CO₂ + H₂O", equation: "CH₄ + 2O₂ → CO₂ + 2H₂O", effect: "fire", description: "CH₄ combusts in oxygen to produce carbon dioxide, water and heat.", intensity: 5, enthalpyChange: -890, isExothermic: true, temperatureChange: 100, heatReleased: 890 },
   { reactants: ["C₂H₆", "O₂"], products: "CO₂ + H₂O", equation: "2C₂H₆ + 7O₂ → 4CO₂ + 6H₂O", effect: "fire", description: "C₂H₆ combusts in oxygen to produce carbon dioxide, water and heat.", intensity: 6, enthalpyChange: -1560, isExothermic: true, temperatureChange: 109, heatReleased: 1560 },
   { reactants: ["C₃H₈", "O₂"], products: "CO₂ + H₂O", equation: "C₃H₈ + 5O₂ → 3CO₂ + 4H₂O", effect: "fire", description: "C₃H₈ combusts in oxygen to produce carbon dioxide, water and heat.", intensity: 7, enthalpyChange: -2220, isExothermic: true, temperatureChange: 118, heatReleased: 2220 },
@@ -772,7 +769,7 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["C₃H₈", "O₂"], products: "CO₂ + H₂O", equation: "C₃H₈ + 5O₂ → 3CO₂ + 4H₂O", effect: "fire", description: "C₃H₈ combusts in oxygen to produce carbon dioxide, water and heat.", intensity: 8, enthalpyChange: -2248, isExothermic: true, temperatureChange: 262, heatReleased: 2248 },
   { reactants: ["C₄H₁₀", "O₂"], products: "CO₂ + H₂O", equation: "2C₄H₁₀ + 13O₂ → 8CO₂ + 10H₂O", effect: "fire", description: "C₄H₁₀ combusts in oxygen to produce carbon dioxide, water and heat.", intensity: 9, enthalpyChange: -2905, isExothermic: true, temperatureChange: 271, heatReleased: 2905 },
 
-  // ── ADDED METAL + ACID GAS-RELEASE REACTIONS ──
+  // ── METAL + ACID GAS-RELEASE REACTIONS ──
   { reactants: ["Mg", "HCl"], products: "MgCl₂ + H₂", equation: "Mg + 2HCl → MgCl₂ + H₂", effect: "bubbles", description: "Mg reacts with HCl, releasing hydrogen gas and heat.", intensity: 4, enthalpyChange: -467, isExothermic: true, temperatureChange: 40, heatReleased: 467 },
   { reactants: ["Zn", "HCl"], products: "ZnCl₂ + H₂", equation: "Zn + 2HCl → ZnCl₂ + H₂", effect: "bubbles", description: "Zn reacts with HCl, releasing hydrogen gas and heat.", intensity: 5, enthalpyChange: -153, isExothermic: true, temperatureChange: 50, heatReleased: 153 },
   { reactants: ["Fe", "HCl"], products: "FeCl₂ + H₂", equation: "Fe + 2HCl → FeCl₂ + H₂", effect: "bubbles", description: "Fe reacts with HCl, releasing hydrogen gas and heat.", intensity: 6, enthalpyChange: -89, isExothermic: true, temperatureChange: 60, heatReleased: 89 },
@@ -824,7 +821,7 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["Mg", "HCl"], products: "MgCl₂ + H₂", equation: "Mg + 2HCl → MgCl₂ + H₂", effect: "bubbles", description: "Mg reacts with HCl, releasing hydrogen gas and heat.", intensity: 4, enthalpyChange: -479, isExothermic: true, temperatureChange: 260, heatReleased: 479 },
   { reactants: ["Zn", "HCl"], products: "ZnCl₂ + H₂", equation: "Zn + 2HCl → ZnCl₂ + H₂", effect: "bubbles", description: "Zn reacts with HCl, releasing hydrogen gas and heat.", intensity: 5, enthalpyChange: -165, isExothermic: true, temperatureChange: 270, heatReleased: 165 },
 
-  // ── ADDED ACID-BASE NEUTRALIZATION REACTIONS ──
+  // ── ACID-BASE NEUTRALIZATION REACTIONS ──
   { reactants: ["HCl", "NaOH"], products: "NaCl + H₂O", equation: "HCl + NaOH → NaCl + H₂O", effect: "color-change", description: "HCl neutralizes NaOH, producing salt, water and heat.", intensity: 3, enthalpyChange: -57, isExothermic: true, temperatureChange: 20, heatReleased: 57 },
   { reactants: ["HCl", "KOH"], products: "KCl + H₂O", equation: "HCl + KOH → KCl + H₂O", effect: "color-change", description: "HCl neutralizes KOH, producing salt, water and heat.", intensity: 4, enthalpyChange: -57, isExothermic: true, temperatureChange: 25, heatReleased: 57 },
   { reactants: ["HNO₃", "NaOH"], products: "NaNO₃ + H₂O", equation: "HNO₃ + NaOH → NaNO₃ + H₂O", effect: "color-change", description: "HNO₃ neutralizes NaOH, producing salt, water and heat.", intensity: 5, enthalpyChange: -57, isExothermic: true, temperatureChange: 30, heatReleased: 57 },
@@ -866,7 +863,7 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["HNO₃", "NaOH"], products: "NaNO₃ + H₂O", equation: "HNO₃ + NaOH → NaNO₃ + H₂O", effect: "color-change", description: "HNO₃ neutralizes NaOH, producing salt, water and heat.", intensity: 5, enthalpyChange: -57, isExothermic: true, temperatureChange: 30, heatReleased: 57 },
   { reactants: ["HNO₃", "KOH"], products: "KNO₃ + H₂O", equation: "HNO₃ + KOH → KNO₃ + H₂O", effect: "color-change", description: "HNO₃ neutralizes KOH, producing salt, water and heat.", intensity: 6, enthalpyChange: -57, isExothermic: true, temperatureChange: 35, heatReleased: 57 },
 
-  // ── ADDED THERMITE / METAL-OXIDE REDUCTION REACTIONS ──
+  // ── THERMITE / METAL-OXIDE REDUCTION REACTIONS ──
   { reactants: ["Al", "Fe₂O₃"], products: "Al₂O₃ + Fe", equation: "2Al + Fe₂O₃ → Al₂O₃ + 2Fe", effect: "explosion", description: "Al reduces Fe₂O₃ in a strongly exothermic metal-oxide reduction reaction.", intensity: 7, enthalpyChange: -851, isExothermic: true, temperatureChange: 180, heatReleased: 851 },
   { reactants: ["Al", "CuO"], products: "Al₂O₃ + Cu", equation: "2Al + 3CuO → Al₂O₃ + 3Cu", effect: "fire", description: "Al reduces CuO in a strongly exothermic metal-oxide reduction reaction.", intensity: 8, enthalpyChange: -681, isExothermic: true, temperatureChange: 193, heatReleased: 681 },
   { reactants: ["Al", "MnO₂"], products: "Al₂O₃ + Mn", equation: "4Al + 3MnO₂ → 2Al₂O₃ + 3Mn", effect: "fire", description: "Al reduces MnO₂ in a strongly exothermic metal-oxide reduction reaction.", intensity: 9, enthalpyChange: -1790, isExothermic: true, temperatureChange: 206, heatReleased: 1790 },
@@ -899,5 +896,4 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["Mg", "Fe₂O₃"], products: "MgO + Fe", equation: "3Mg + Fe₂O₃ → 3MgO + 2Fe", effect: "fire", description: "Mg reduces Fe₂O₃ in a strongly exothermic metal-oxide reduction reaction.", intensity: 8, enthalpyChange: -1000, isExothermic: true, temperatureChange: 257, heatReleased: 1000 },
 ];
 
-// Export as named export for convenience
 export default EXOTHERMIC_REACTIONS;
