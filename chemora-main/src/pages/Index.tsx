@@ -12,6 +12,7 @@ const DesktopEquipmentArea = lazy(() => import("@/components/DesktopEquipmentAre
 const ThermalAnalysisPanel = lazy(() => import("@/components/ThermalAnalysisPanel"));
 const ExperimentReport = lazy(() => import("@/components/ExperimentReport"));
 const OnboardingTutorial = lazy(() => import("@/components/OnboardingTutorial"));
+const ChemistryAIAssistant = lazy(() => import("@/components/ChemistryAIAssistant"));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -35,6 +36,7 @@ const Index = () => {
   const [, setDragging] = useState<Chemical | Apparatus | null>(null);
   const [experimentSteps, setExperimentSteps] = useState<ExperimentStep[]>([]);
   const [showReport, setShowReport] = useState(false);
+  const [showChemistryAI, setShowChemistryAI] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
   const [showTutorial, setShowTutorial] = useState(true);
   const [activeMetal, setActiveMetal] = useState<string | null>(null);
@@ -83,6 +85,13 @@ const Index = () => {
               </button>
             )}
             <button
+              onClick={() => setShowChemistryAI(true)}
+              className="rounded-full border border-primary/20 bg-background/70 px-3.5 py-1.5 text-xs font-semibold text-primary shadow-sm shadow-primary/10 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary hover:text-primary-foreground hover:shadow-lg hover:shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              title="Open Chemora AI"
+            >
+              Chemora AI
+            </button>
+            <button
               onClick={() => setShowReport(true)}
               className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-md border border-primary/30 hover:bg-primary/10"
             >
@@ -101,6 +110,13 @@ const Index = () => {
         {/* Mobile Layout - Simplified Header */}
         {isMobile && (
           <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setShowChemistryAI(true)}
+              className="rounded-full border border-primary/20 bg-background/70 px-3.5 py-1.5 text-xs font-semibold text-primary shadow-sm shadow-primary/10 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary hover:text-primary-foreground hover:shadow-lg hover:shadow-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              title="Open Chemora AI"
+            >
+              AI
+            </button>
             <button
               onClick={() => setShowReport(true)}
               className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-md border border-primary/30 hover:bg-primary/10 relative"
@@ -208,6 +224,13 @@ const Index = () => {
             onClose={() => setShowReport(false)}
             onClear={handleClearReport}
           />
+        </Suspense>
+      )}
+
+      {/* Chemistry AI assistant */}
+      {showChemistryAI && (
+        <Suspense fallback={<LoadingFallback />}>
+          <ChemistryAIAssistant onClose={() => setShowChemistryAI(false)} />
         </Suspense>
       )}
 
