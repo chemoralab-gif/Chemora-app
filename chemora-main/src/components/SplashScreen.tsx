@@ -183,7 +183,7 @@ export default function SplashScreen({
       {/* Chemora Logo and Text */}
       <div className="text-center">
         <h1 className="text-4xl font-bold text-white mb-2">Chemora</h1>
-        <p className="text-sm text-white/60 tracking-widest">Every Atom is Yours</p>
+        <p className="text-sm text-white/60 tracking-widest">Where Atoms come alive</p>
       </div>
 
       {/* Loading indicator */}

@@ -82,7 +82,7 @@ const Index = () => {
       <header className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-card/80 backdrop-blur-sm">
         <img src="/chemora-logo.png" alt="Chemora" className="w-5 h-5" />
         <h1 className="text-base font-semibold text-foreground tracking-tight">Chemora</h1>
-        <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">Every Atom is Yours</span>
+        <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">Where Atoms come alive</span>
         
         {/* UI Mode Toggle */}
         {/* REMOVED: UI Mode toggle buttons removed per user request */}
