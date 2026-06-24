@@ -6,6 +6,7 @@ import SwipeHint from "@/components/SwipeHint";
 import { useSwipe } from "@/hooks/use-swipe";
 import type { SelectedItem } from "@/pages/Index";
 import type { Chemical, Apparatus, ExperimentStep } from "@/lib/reactions";
+import type { CalorimetryData } from "@/components/types/thermal";
 
 interface MobileSwipeLayoutProps {
   onDragStart: (chemical: Chemical) => void;
@@ -13,6 +14,7 @@ interface MobileSwipeLayoutProps {
   selectedItem: SelectedItem;
   onSelect: (item: SelectedItem) => void;
   onExperimentStep: (step: ExperimentStep) => void;
+  onMaterialsRemoved: (materialIds: string[]) => void;
   onItemPlaced: () => void;
   onMetalChange: (metal: string | null) => void;
   onWaterTempChange: (temp: number) => void;
@@ -20,7 +22,7 @@ interface MobileSwipeLayoutProps {
   pressure: number;
   onReactionTempChange: (temp: number | null) => void;
   onActiveChange: (active: boolean) => void;
-  onCalorimetryData: (data: any) => void;
+  onCalorimetryData: (data: CalorimetryData | null) => void;
   onAtmosphericTempChange: (temp: number) => void;
   onPressureChange: (pressure: number) => void;
   activeMetal: string | null;
@@ -35,6 +37,7 @@ export default function MobileSwipeLayout({
   selectedItem,
   onSelect,
   onExperimentStep,
+  onMaterialsRemoved,
   onItemPlaced,
   onMetalChange,
   onWaterTempChange,
@@ -128,6 +131,7 @@ export default function MobileSwipeLayout({
         <div className="w-full h-full flex flex-col relative">
           <EquipmentArea
             onExperimentStep={onExperimentStep}
+            onMaterialsRemoved={onMaterialsRemoved}
             selectedItem={selectedItem}
             onItemPlaced={onItemPlaced}
             onMetalChange={onMetalChange}

@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { ExperimentStep } from "@/lib/reactions";
+import { useEffect, useRef, useState } from "react";
+import { ExperimentMaterial, ExperimentStep } from "@/lib/reactions";
 import { CalorimetryData } from "@/components/ThermalAnalysisPanel";
 import { X, FileText, Clock, Download, Edit3, Trash2 } from "lucide-react";
 import jsPDF from "jspdf";
@@ -7,13 +7,36 @@ import jsPDF from "jspdf";
 interface ExperimentReportProps {
   steps: ExperimentStep[];
   calorimetryData: CalorimetryData | null;
+  hiddenMaterialIds: string[];
+  deskRemovedMaterialIds: string[];
+  onHideMaterial: (materialId: string) => void;
   onClose: () => void;
   onClear: () => void;
 }
 
+type MaterialCategory = "container" | "chemical" | "apparatus" | "safety" | "other";
+
+type ReportMaterial = {
+  id: string;
+  label: string;
+  category: MaterialCategory;
+  count: number;
+};
+
+const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
+  container: "Containers",
+  chemical: "Chemicals",
+  apparatus: "Heating, Mixing & Measuring",
+  safety: "Safety",
+  other: "Other Materials",
+};
+
+const MATERIAL_CATEGORY_ORDER: MaterialCategory[] = ["container", "chemical", "apparatus", "safety", "other"];
+
 function generateAim(steps: ExperimentStep[]): string {
-  if (steps.length === 0) return "To investigate chemical reactions in a laboratory setting.";
-  const types = new Set(steps.map((s) => s.reaction?.effect).filter(Boolean));
+  const procedureSteps = steps.filter((step) => !step.materialOnly);
+  if (procedureSteps.length === 0) return "To investigate chemical reactions in a laboratory setting.";
+  const types = new Set(procedureSteps.map((s) => s.reaction?.effect).filter(Boolean));
   const parts: string[] = [];
   if (types.has("explosion") || types.has("fire")) parts.push("exothermic reactions");
   if (types.has("bubbles") || types.has("fizz") || types.has("gas-release")) parts.push("gas-producing reactions");
@@ -24,21 +47,74 @@ function generateAim(steps: ExperimentStep[]): string {
   return `To investigate ${parts.join(", ")} by mixing various chemicals and observing the results.`;
 }
 
-function generateMaterials(steps: ExperimentStep[]): string[] {
-  const chems = new Set<string>();
-  const apps = new Set<string>();
-  steps.forEach((s) => {
-    s.chemicals.forEach((c) => chems.add(`${c.name} (${c.formula})`));
-    s.apparatus.forEach((a) => apps.add(a));
+function normalizeMaterialCategory(category: ExperimentMaterial["category"]): MaterialCategory {
+  if (category === "container") return "container";
+  if (category === "chemical") return "chemical";
+  if (category === "safety") return "safety";
+  if (category === "heating" || category === "mixing" || category === "measuring") return "apparatus";
+  return "other";
+}
+
+function addMaterial(materials: Map<string, ReportMaterial>, material: Omit<ReportMaterial, "count">) {
+  const current = materials.get(material.id);
+  materials.set(material.id, {
+    ...material,
+    count: (current?.count ?? 0) + 1,
   });
-  return [...Array.from(chems), ...Array.from(apps)];
+}
+
+function subtractMaterial(materials: Map<string, ReportMaterial>, materialId: string) {
+  const material = materials.get(materialId);
+  if (!material) return;
+  if (material.count <= 1) {
+    materials.delete(materialId);
+    return;
+  }
+  materials.set(materialId, { ...material, count: material.count - 1 });
+}
+
+function generateMaterials(steps: ExperimentStep[], deskRemovedMaterialIds: string[], reportRemovedMaterialIds: string[]): ReportMaterial[] {
+  const materials = new Map<string, ReportMaterial>();
+
+  steps.forEach((step) => {
+    if (!step.material) return;
+    const material = step.material;
+    addMaterial(materials, {
+      id: material.id,
+      label: material.label,
+      category: normalizeMaterialCategory(material.category),
+    });
+  });
+
+  deskRemovedMaterialIds.forEach((materialId) => subtractMaterial(materials, materialId));
+  reportRemovedMaterialIds.forEach((materialId) => subtractMaterial(materials, materialId));
+
+  return Array.from(materials.values()).sort((a, b) => {
+    const categoryDiff = MATERIAL_CATEGORY_ORDER.indexOf(a.category) - MATERIAL_CATEGORY_ORDER.indexOf(b.category);
+    if (categoryDiff !== 0) return categoryDiff;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+function groupMaterials(materials: ReportMaterial[]) {
+  return MATERIAL_CATEGORY_ORDER.map((category) => ({
+    category,
+    label: MATERIAL_CATEGORY_LABELS[category],
+    items: materials.filter((material) => material.category === category),
+  })).filter((group) => group.items.length > 0);
+}
+
+function getMaterialLabel(material: ReportMaterial): string {
+  if (material.category === "chemical" || material.count <= 1) return material.label;
+  return `${material.label} x${material.count}`;
 }
 
 function generateConclusion(steps: ExperimentStep[]): string {
-  if (steps.length === 0) return "No reactions were performed during this experiment.";
-  const successful = steps.filter((s) => s.reaction && s.reaction.intensity > 0);
-  const noReaction = steps.filter((s) => s.reaction && s.reaction.intensity === 0);
-  let conclusion = `In this experiment, ${steps.length} reaction${steps.length !== 1 ? "s" : ""} were attempted. `;
+  const procedureSteps = steps.filter((step) => !step.materialOnly);
+  if (procedureSteps.length === 0) return "No reactions were performed during this experiment.";
+  const successful = procedureSteps.filter((s) => s.reaction && s.reaction.intensity > 0);
+  const noReaction = procedureSteps.filter((s) => s.reaction && s.reaction.intensity === 0);
+  let conclusion = `In this experiment, ${procedureSteps.length} reaction${procedureSteps.length !== 1 ? "s" : ""} were attempted. `;
   if (successful.length > 0) {
     conclusion += `${successful.length} produced observable results including ${[...new Set(successful.map((s) => s.reaction!.effect.replace("-", " ")))].join(", ")}. `;
     const maxIntensity = Math.max(...successful.map((s) => s.reaction!.intensity));
@@ -71,15 +147,72 @@ function sanitizeForPDF(text: string): string {
   return result;
 }
 
-export default function ExperimentReport({ steps, calorimetryData, onClose, onClear }: ExperimentReportProps) {
+function makeExportFilename(value: string, fallback: string, extension: "pdf"): string {
+  const trimmed = value.trim();
+  const safeBase = (trimmed || fallback)
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/[. ]+$/g, "")
+    .slice(0, 80);
+  const filename = safeBase || fallback;
+  return filename.toLowerCase().endsWith(`.${extension}`) ? filename : `${filename}.${extension}`;
+}
+
+export default function ExperimentReport({ steps, calorimetryData, hiddenMaterialIds, deskRemovedMaterialIds, onHideMaterial, onClose, onClear }: ExperimentReportProps) {
   const [aim, setAim] = useState(generateAim(steps));
   const [conclusion, setConclusion] = useState(generateConclusion(steps));
   const [editingAim, setEditingAim] = useState(false);
   const [editingConclusion, setEditingConclusion] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pdfFileName, setPdfFileName] = useState(() => `experiment-report-${new Date().toISOString().slice(0, 10)}`);
+  const [removedMaterial, setRemovedMaterial] = useState<ReportMaterial | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+  const removeTimeoutRef = useRef<number | null>(null);
 
-  const materials = generateMaterials(steps);
+  const materials = generateMaterials(steps, deskRemovedMaterialIds, hiddenMaterialIds);
+  const materialGroups = groupMaterials(materials);
+  const procedureSteps = steps.filter((step) => !step.materialOnly);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!removedMaterial) return;
+    if (removeTimeoutRef.current !== null) window.clearTimeout(removeTimeoutRef.current);
+
+    const materialId = removedMaterial.id;
+    removeTimeoutRef.current = window.setTimeout(() => {
+      onHideMaterial(materialId);
+      removeTimeoutRef.current = null;
+      if (mountedRef.current) setRemovedMaterial(null);
+    }, 5000);
+  }, [removedMaterial, onHideMaterial]);
+
+  const handleRemoveMaterial = (material: ReportMaterial) => {
+    setRemovedMaterial(material);
+  };
+
+  const handleUndoRemoveMaterial = () => {
+    if (removeTimeoutRef.current !== null) {
+      window.clearTimeout(removeTimeoutRef.current);
+      removeTimeoutRef.current = null;
+    }
+    setRemovedMaterial(null);
+  };
+
+  const handleConfirmRemoveMaterial = () => {
+    if (!removedMaterial) return;
+    if (removeTimeoutRef.current !== null) {
+      window.clearTimeout(removeTimeoutRef.current);
+      removeTimeoutRef.current = null;
+    }
+    onHideMaterial(removedMaterial.id);
+    setRemovedMaterial(null);
+  };
 
   const handleSavePDF = async () => {
     setSaving(true);
@@ -107,7 +240,7 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(120, 120, 120);
-      pdf.text(`Date: ${new Date().toLocaleDateString()}  |  Reactions: ${steps.length}`, pageWidth / 2, y, { align: "center" });
+      pdf.text(`Date: ${new Date().toLocaleDateString()}  |  Reactions: ${procedureSteps.length}`, pageWidth / 2, y, { align: "center" });
       pdf.setTextColor(0, 0, 0);
       y += 4;
 
@@ -150,13 +283,21 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
       } else {
         pdf.setFontSize(9);
         pdf.setFont("helvetica", "normal");
-        const colWidth = contentWidth / 2;
-        materials.forEach((m, i) => {
-          checkPage(5);
-          const col = i % 2;
-          const xPos = margin + col * colWidth;
-          pdf.text(`• ${sanitizeForPDF(m)}`, xPos, y);
-          if (col === 1 || i === materials.length - 1) y += 4.5;
+        materialGroups.forEach((group) => {
+          checkPage(8);
+          pdf.setFont("helvetica", "bold");
+          pdf.text(group.label, margin, y);
+          y += 5;
+          pdf.setFont("helvetica", "normal");
+          const colWidth = contentWidth / 2;
+          group.items.forEach((m, i) => {
+            checkPage(5);
+            const col = i % 2;
+            const xPos = margin + col * colWidth;
+            pdf.text(`- ${sanitizeForPDF(getMaterialLabel(m))}`, xPos, y);
+            if (col === 1 || i === group.items.length - 1) y += 4.5;
+          });
+          y += 2;
         });
         y += 4;
       }
@@ -184,14 +325,14 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
       }
 
       // Procedure
-      sectionTitle(`Procedure & Observations (${steps.length} steps)`);
-      if (steps.length === 0) {
+      sectionTitle(`Procedure & Observations (${procedureSteps.length} steps)`);
+      if (procedureSteps.length === 0) {
         pdf.setFontSize(10);
         pdf.setFont("helvetica", "italic");
         pdf.text("No reactions recorded.", margin, y);
         y += 6;
       } else {
-        steps.forEach((step, i) => {
+        procedureSteps.forEach((step, i) => {
           checkPage(25);
           // Step header
           pdf.setFontSize(10);
@@ -207,11 +348,13 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
           // Chemicals
           pdf.setFontSize(9);
           pdf.setFont("helvetica", "normal");
-          const chemsText = `Chemicals: ${step.chemicals.map((c) => `${c.name} (${sanitizeForPDF(c.formula)})`).join(" + ")}`;
-          const chemsLines = pdf.splitTextToSize(chemsText, contentWidth);
-          checkPage(chemsLines.length * 4);
-          pdf.text(chemsLines, margin + 3, y);
-          y += chemsLines.length * 4;
+          if (step.chemicals.length > 0) {
+            const chemsText = `Chemicals: ${step.chemicals.map((c) => `${c.name} (${sanitizeForPDF(c.formula)})`).join(" + ")}`;
+            const chemsLines = pdf.splitTextToSize(chemsText, contentWidth);
+            checkPage(chemsLines.length * 4);
+            pdf.text(chemsLines, margin + 3, y);
+            y += chemsLines.length * 4;
+          }
 
           if (step.apparatus.length > 0) {
             const appText = `Apparatus: ${step.apparatus.join(", ")}`;
@@ -250,7 +393,7 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
 
           // Step separator
           y += 2;
-          if (i < steps.length - 1) {
+          if (i < procedureSteps.length - 1) {
             pdf.setDrawColor(230, 230, 230);
             pdf.line(margin + 5, y, pageWidth - margin - 5, y);
             y += 4;
@@ -267,7 +410,7 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
       checkPage(concLines.length * 5);
       pdf.text(concLines, margin, y);
 
-      pdf.save(`experiment-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      pdf.save(makeExportFilename(pdfFileName, `experiment-report-${new Date().toISOString().slice(0, 10)}`, "pdf"));
     } catch (err) {
       console.error("PDF generation failed:", err);
     } finally {
@@ -285,6 +428,13 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
             <h2 className="text-sm font-semibold text-foreground">Experiment Report</h2>
           </div>
           <div className="flex items-center gap-2">
+            <input
+              value={pdfFileName}
+              onChange={(event) => setPdfFileName(event.target.value)}
+              className="h-7 w-36 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary sm:w-44"
+              placeholder="PDF file name"
+              title="PDF file name"
+            />
             <button
               onClick={onClear}
               className="text-xs text-destructive hover:text-destructive/80 transition-colors px-3 py-1 rounded-md border border-destructive/30 hover:bg-destructive/10 flex items-center gap-1"
@@ -310,7 +460,7 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
           <div className="text-center border-b border-border pb-4">
             <h1 className="text-lg font-bold text-foreground">Chemistry Experiment Report</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Date: {new Date().toLocaleDateString()} | Reactions: {steps.length}
+              Date: {new Date().toLocaleDateString()} | Reactions: {procedureSteps.length}
             </p>
           </div>
 
@@ -339,13 +489,30 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
             {materials.length === 0 ? (
               <p className="text-sm text-muted-foreground/60 italic">No materials used yet.</p>
             ) : (
-              <ul className="grid grid-cols-2 gap-1">
-                {materials.map((m, i) => (
-                  <li key={i} className="text-xs text-muted-foreground flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-primary" /> {m}
-                  </li>
+              <div className="space-y-3">
+                {materialGroups.map((group) => (
+                  <div key={group.category} className="space-y-1">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.label}
+                    </h4>
+                    <ul className="grid grid-cols-2 gap-1">
+                      {group.items.map((material) => (
+                        <li key={material.id} className="group flex items-center gap-1 rounded-md pr-1 text-xs text-muted-foreground hover:bg-secondary/30">
+                          <span className="h-1 w-1 rounded-full bg-primary" />
+                          <span className="min-w-0 flex-1 truncate">{getMaterialLabel(material)}</span>
+                          <button
+                            onClick={() => handleRemoveMaterial(material)}
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            title="Remove material from report"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </section>
 
@@ -392,16 +559,16 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
           {/* Procedure / Steps */}
           <section>
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-2">
-              Procedure & Observations ({steps.length} steps)
+              Procedure & Observations ({procedureSteps.length} steps)
             </h3>
-            {steps.length === 0 ? (
+            {procedureSteps.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No reactions recorded yet.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {steps.map((step, i) => (
+                {procedureSteps.map((step, i) => (
                   <div key={i} className="bg-secondary/30 border border-border rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-foreground">
@@ -413,10 +580,12 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
                       </span>
                     </div>
 
-                    <div className="text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground/80">Chemicals: </span>
-                      {step.chemicals.map((c) => `${c.name} (${c.formula})`).join(" + ")}
-                    </div>
+                    {step.chemicals.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground/80">Chemicals: </span>
+                        {step.chemicals.map((c) => `${c.name} (${c.formula})`).join(" + ")}
+                      </div>
+                    )}
 
                     {step.apparatus.length > 0 && (
                       <div className="text-xs text-muted-foreground">
@@ -473,6 +642,28 @@ export default function ExperimentReport({ steps, calorimetryData, onClose, onCl
           </section>
         </div>
       </div>
+      {removedMaterial && (
+        <div className="fixed bottom-4 right-4 z-[60] max-w-sm rounded-lg border border-border bg-card/80 p-4 text-sm text-foreground shadow-2xl backdrop-blur-md">
+          <p className="font-medium">{removedMaterial.label} removed from Materials Used.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            It will stay on the Fusion Desk. This only removes it from the report.
+          </p>
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              onClick={handleUndoRemoveMaterial}
+              className="rounded-md border border-primary/30 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+            >
+              Undo
+            </button>
+            <button
+              onClick={handleConfirmRemoveMaterial}
+              className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-secondary"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

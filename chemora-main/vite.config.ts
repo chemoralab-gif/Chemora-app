@@ -2,12 +2,11 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import type { IncomingMessage } from "http";
+import { handleAiRequest } from "./ai/ai-core";
 
-const chemoraSystemPrompt =
-  "You are Chemora AI, a concise chemistry tutor inside a virtual chemistry lab. Answer chemistry questions from basic concepts to molecular behavior. Explain clearly, use equations when useful, and keep lab safety in mind.";
-
-const readJsonBody = (req: any) =>
-  new Promise<any>((resolve, reject) => {
+const readJsonBody = (req: IncomingMessage) =>
+  new Promise<unknown>((resolve, reject) => {
     const chunks: Buffer[] = [];
 
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -22,73 +21,12 @@ const readJsonBody = (req: any) =>
     req.on("error", reject);
   });
 
-const getChemoraAnswer = (data: any) =>
-  data?.candidates?.[0]?.content?.parts
-    ?.map((part: any) => part?.text || "")
-    .filter(Boolean)
-    .join("\n") ||
-  data?.choices?.[0]?.message?.content ||
-  data?.output_text ||
-  data?.answer ||
-  data?.message ||
-  data?.text ||
-  "";
-
-const toGeminiContents = (messages: any[]) =>
-  messages.map((message) => ({
-    role: message.role === "assistant" ? "model" : "user",
-    parts: [{ text: message.content }],
-  }));
-
-const callGemini = async (apiKey: string, model: string, messages: any[]) => {
-  const geminiModel = model.startsWith("gemini-") ? model : "gemini-2.0-flash";
-  const upstream = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: chemoraSystemPrompt }],
-        },
-        contents: toGeminiContents(messages),
-        generationConfig: {
-          temperature: 0.35,
-        },
-      }),
-    },
-  );
-
-  const data = await upstream.json().catch(() => ({}));
-  return { upstream, data };
-};
-
-const callOpenAiCompatible = async (apiKey: string, apiUrl: string, model: string, messages: any[]) => {
-  const upstream = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: chemoraSystemPrompt }, ...messages],
-      temperature: 0.35,
-    }),
-  });
-
-  const data = await upstream.json().catch(() => ({}));
-  return { upstream, data };
-};
-
 const chemoraDevApiPlugin = (mode: string): Plugin => ({
   name: "chemora-dev-api",
   configureServer(server) {
     const env = loadEnv(mode, process.cwd(), "");
 
-    server.middlewares.use("/api/chemora-ai", async (req, res) => {
+    server.middlewares.use("/api/ai", async (req, res) => {
       if (req.method !== "POST") {
         res.statusCode = 405;
         res.setHeader("Content-Type", "application/json");
@@ -96,46 +34,13 @@ const chemoraDevApiPlugin = (mode: string): Plugin => ({
         return;
       }
 
-      const apiKey = env.chemora_api || env.CHEMORA_API;
-      const provider = env.CHEMORA_PROVIDER || (apiKey?.startsWith("AQ.") || apiKey?.startsWith("AIza") ? "gemini" : "openai");
-      const apiUrl = env.CHEMORA_API_URL || "https://api.openai.com/v1/chat/completions";
-      const model = env.CHEMORA_MODEL || (provider === "gemini" ? "gemini-2.0-flash" : "gpt-4o-mini");
-
-      if (!apiKey) {
-        res.statusCode = 500;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({ error: "Missing chemora_api environment variable" }));
-        return;
-      }
-
       try {
         const body = await readJsonBody(req);
-        const messages = Array.isArray(body?.messages) ? body.messages : [];
-        const cleanMessages = messages
-          .filter((message: any) => message.role === "assistant" || message.role === "user")
-          .map((message: any) => ({
-            role: message.role,
-            content: String(message.content || "").slice(0, 4000),
-          }))
-          .slice(-12);
+        const result = await handleAiRequest(body, env);
 
-        const { upstream, data } =
-          provider === "gemini"
-            ? await callGemini(apiKey, model, cleanMessages)
-            : await callOpenAiCompatible(apiKey, apiUrl, model, cleanMessages);
-
-        if (!upstream.ok) {
-          res.statusCode = upstream.status;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ error: data?.error?.message || upstream.statusText || "Chemora API provider request failed" }));
-          return;
-        }
-
-        const answer = getChemoraAnswer(data);
-
-        res.statusCode = answer ? 200 : 502;
+        res.statusCode = result.status;
         res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify(answer ? { answer } : { error: "Chemora API provider returned no answer" }));
+        res.end(JSON.stringify(result.body));
       } catch {
         res.statusCode = 500;
         res.setHeader("Content-Type", "application/json");

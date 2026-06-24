@@ -50,6 +50,7 @@ export interface FilterSeparation {
 
 export interface EquipmentAreaProps {
   onExperimentStep?: (step: ExperimentStep) => void;
+  onMaterialsRemoved?: (materialIds: string[]) => void;
   selectedItem?: SelectedItem;
   onItemPlaced?: () => void;
   onMetalChange?: (metalName: string | null) => void;
@@ -186,7 +187,70 @@ function calculateFilterSeparation(chemicals: Chemical[], apparatuses: Apparatus
   };
 }
 
-export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPlaced, onMetalChange, onWaterTempChange, atmosphericTemp = 25, pressure = 101.325, onReactionTempChange, onActiveChange }: EquipmentAreaProps) {
+function getApparatusMaterialCategory(apparatus: Apparatus): NonNullable<ExperimentStep["material"]>["category"] {
+  if (apparatus.category === "container") return "container";
+  if (apparatus.category === "heating") return "heating";
+  if (apparatus.category === "measuring") return "measuring";
+  if (apparatus.category === "mixing") return "mixing";
+  if (apparatus.category === "safety") return "safety";
+  return "other";
+}
+
+function getApparatusMaterialId(apparatus: Apparatus): string {
+  return `apparatus:${apparatus.id}`;
+}
+
+function getChemicalMaterialId(chemical: Chemical): string {
+  return `chemical:${chemical.id}`;
+}
+
+function createApparatusMaterialStep(beakerLabel: string, apparatus: Apparatus): ExperimentStep {
+  return {
+    timestamp: new Date(),
+    beakerLabel,
+    chemicals: [],
+    reaction: null,
+    apparatus: [apparatus.name],
+    materialOnly: true,
+    material: {
+      id: getApparatusMaterialId(apparatus),
+      name: apparatus.name,
+      label: apparatus.name,
+      category: getApparatusMaterialCategory(apparatus),
+    },
+  };
+}
+
+function createChemicalMaterialStep(beakerLabel: string, chemical: Chemical): ExperimentStep {
+  return {
+    timestamp: new Date(),
+    beakerLabel,
+    chemicals: [chemical],
+    reaction: null,
+    apparatus: [],
+    materialOnly: true,
+    material: {
+      id: getChemicalMaterialId(chemical),
+      name: chemical.name,
+      label: `${chemical.name} (${chemical.formula})`,
+      category: "chemical",
+    },
+  };
+}
+
+function getContainerMaterialIds(container: ContainerState): string[] {
+  return [
+    getApparatusMaterialId(container.apparatus),
+    ...container.attachedApparatuses.map(getApparatusMaterialId),
+    ...container.chemicals.map(getChemicalMaterialId),
+  ];
+}
+
+function getActiveMaterialIds(containers: ContainerState[]): Set<string> {
+  return new Set(containers.flatMap(getContainerMaterialIds));
+}
+
+export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, selectedItem, onItemPlaced, onMetalChange, onWaterTempChange, atmosphericTemp = 25, pressure = 101.325, onReactionTempChange, onActiveChange }: EquipmentAreaProps) {
   const [containers, setContainers] = useState<ContainerState[]>([]);
   const [activeReaction, setActiveReaction] = useState<Reaction | null>(null);
 
@@ -343,9 +407,10 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
         collectedGases: [],
         reactionComplete: false,
       };
+      onExperimentStep?.(createApparatusMaterialStep(newContainer.label, apparatus));
       return [...prev, newContainer];
     });
-  }, []);
+  }, [onExperimentStep, atmosphericTemp]);
 
   const handleContainerDrop = useCallback((containerId: string, e: React.DragEvent) => {
     e.preventDefault();
@@ -450,6 +515,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
             setActiveReaction(reaction);
             onExperimentStep?.({ timestamp: new Date(), beakerLabel: c.label, chemicals: c.chemicals, reaction, apparatus: newApparatuses.map((a) => a.name) });
           }
+          onExperimentStep?.(createApparatusMaterialStep(c.label, apparatus));
           
           return { ...c, attachedApparatuses: newApparatuses, temperature: temp, phaseChanges, filterSeparation, collectedGases: gases, reaction };
         })
@@ -497,6 +563,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
           setActiveReaction(reaction);
           onExperimentStep?.({ timestamp: new Date(), beakerLabel: c.label, chemicals: newChemicals, reaction, apparatus: c.attachedApparatuses.map((a) => a.name) });
         }
+        onExperimentStep?.(createChemicalMaterialStep(c.label, chemical));
 
         return { ...c, chemicals: newChemicals, reaction, showEffect, pH, temperature: temp, solutionColor, phaseChanges, filterSeparation, collectedGases: gases };
       })
@@ -504,25 +571,46 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
   }, [onExperimentStep, connectingFrom]);
 
   const clearContainer = (containerId: string) => {
-    setContainers((prev) =>
-      prev.map((c) => {
+    setContainers((prev) => {
+      const target = prev.find((c) => c.id === containerId);
+      const updated = prev.map((c) => {
         if (c.id === containerId) return { ...c, chemicals: [], attachedApparatuses: [], reaction: null, showEffect: false, temperature: atmosphericTemp, burnerTemperature: 300, coolingTarget: 5, pH: null, solutionColor: null, phaseChanges: [], connectedTo: null, filterSeparation: null, transferredChemicalIds: [], isTransferTarget: false, collectedGases: [], reactionComplete: false };
         // Also disconnect the other end
         if (c.connectedTo === containerId) return { ...c, connectedTo: null };
         return c;
-      })
-    );
+      });
+      if (target) {
+        const removedIds = [
+          ...target.attachedApparatuses.map(getApparatusMaterialId),
+          ...target.chemicals.map(getChemicalMaterialId),
+        ];
+        if (removedIds.length > 0) onMaterialsRemoved?.(removedIds);
+      }
+      return updated;
+    });
     setActiveReaction(null);
   };
 
   const removeContainer = (containerId: string) => {
     setContainers((prev) => {
+      const target = prev.find((c) => c.id === containerId);
       const filtered = prev.filter((c) => c.id !== containerId).map((c) => c.connectedTo === containerId ? { ...c, connectedTo: null } : c);
-      return filtered.map((c, i) => ({ ...c, label: `${c.apparatus.name} ${LABELS[i] || i + 1}` }));
+      const updated = filtered.map((c, i) => ({ ...c, label: `${c.apparatus.name} ${LABELS[i] || i + 1}` }));
+      if (target) {
+        const removedIds = getContainerMaterialIds(target);
+        if (removedIds.length > 0) onMaterialsRemoved?.(removedIds);
+      }
+      return updated;
     });
   };
 
-  const clearAll = () => { setContainers([]); setActiveReaction(null); setConnectingFrom(null); };
+  const clearAll = () => {
+    const removedIds = containers.flatMap(getContainerMaterialIds);
+    if (removedIds.length > 0) onMaterialsRemoved?.(removedIds);
+    setContainers([]);
+    setActiveReaction(null);
+    setConnectingFrom(null);
+  };
 
   const handleBurnerTempChange = useCallback((containerId: string, newBurnerTemp: number) => {
     setContainers((prev) =>
@@ -621,10 +709,11 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
         collectedGases: [],
         reactionComplete: false,
       };
+      onExperimentStep?.(createApparatusMaterialStep(newContainer.label, apparatus));
       return [...prev, newContainer];
     });
     onItemPlaced?.();
-  }, [selectedItem, onItemPlaced]);
+  }, [selectedItem, onItemPlaced, onExperimentStep, atmosphericTemp]);
 
   // Click-to-place: container click adds chemical or apparatus
   const handleContainerClick = useCallback((containerId: string) => {
@@ -700,6 +789,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
           const phaseChanges = calculatePhaseChanges(c.chemicals, newApparatuses, c.burnerTemperature);
           const filterSeparation = calculateFilterSeparation(c.chemicals, newApparatuses);
           const gases = collectGases(c.chemicals, phaseChanges, newApparatuses);
+          onExperimentStep?.(createApparatusMaterialStep(c.label, apparatus));
           return { ...c, attachedApparatuses: newApparatuses, temperature: temp, phaseChanges, filterSeparation, collectedGases: gases };
         })
       );
@@ -732,6 +822,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
           setActiveReaction(reaction);
           onExperimentStep?.({ timestamp: new Date(), beakerLabel: c.label, chemicals: newChemicals, reaction, apparatus: c.attachedApparatuses.map((a) => a.name) });
         }
+        onExperimentStep?.(createChemicalMaterialStep(c.label, chemical));
         return { ...c, chemicals: newChemicals, reaction, showEffect, pH, temperature: temp, solutionColor, phaseChanges, filterSeparation, collectedGases: gases };
       })
     );

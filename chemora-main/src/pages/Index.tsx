@@ -35,6 +35,9 @@ const Index = () => {
   const isMobile = isMobileUI(actualIsMobile);
   const [, setDragging] = useState<Chemical | Apparatus | null>(null);
   const [experimentSteps, setExperimentSteps] = useState<ExperimentStep[]>([]);
+  const [hiddenReportMaterialIds, setHiddenReportMaterialIds] = useState<string[]>([]);
+  const [deskRemovedMaterialIds, setDeskRemovedMaterialIds] = useState<string[]>([]);
+  const [unreadReportCount, setUnreadReportCount] = useState(0);
   const [showReport, setShowReport] = useState(false);
   const [showChemistryAI, setShowChemistryAI] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
@@ -49,10 +52,28 @@ const Index = () => {
 
   const handleExperimentStep = useCallback((step: ExperimentStep) => {
     setExperimentSteps((prev) => [...prev, step]);
-  }, []);
+    if (!showReport) setUnreadReportCount((current) => current + 1);
+  }, [showReport]);
 
   const handleClearReport = useCallback(() => {
     setExperimentSteps([]);
+    setHiddenReportMaterialIds([]);
+    setDeskRemovedMaterialIds([]);
+    setUnreadReportCount(0);
+  }, []);
+
+  const handleHideReportMaterial = useCallback((materialId: string) => {
+    setHiddenReportMaterialIds((current) => [...current, materialId]);
+  }, []);
+
+  const handleMaterialsRemoved = useCallback((materialIds: string[]) => {
+    setDeskRemovedMaterialIds((current) => [...current, ...materialIds]);
+    if (!showReport) setUnreadReportCount((current) => current + materialIds.length);
+  }, [showReport]);
+
+  const handleOpenReport = useCallback(() => {
+    setShowReport(true);
+    setUnreadReportCount(0);
   }, []);
 
   return (
@@ -92,15 +113,15 @@ const Index = () => {
               Chemora AI
             </button>
             <button
-              onClick={() => setShowReport(true)}
+              onClick={handleOpenReport}
               className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-md border border-primary/30 hover:bg-primary/10"
             >
               <FileText className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Experiment Report</span>
               <span className="sm:hidden">Report</span>
-              {experimentSteps.length > 0 && (
+              {unreadReportCount > 0 && (
                 <span className="bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                  {experimentSteps.length}
+                  {unreadReportCount}
                 </span>
               )}
             </button>
@@ -118,15 +139,15 @@ const Index = () => {
               AI
             </button>
             <button
-              onClick={() => setShowReport(true)}
+              onClick={handleOpenReport}
               className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-md border border-primary/30 hover:bg-primary/10 relative"
               title="Experiment Report"
             >
               <FileText className="w-3.5 h-3.5" />
               <span>Report</span>
-              {experimentSteps.length > 0 && (
+              {unreadReportCount > 0 && (
                 <span className="bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                  {experimentSteps.length}
+                  {unreadReportCount}
                 </span>
               )}
             </button>
@@ -164,6 +185,7 @@ const Index = () => {
           <Suspense fallback={<LoadingFallback />}>
             <DesktopEquipmentArea
               onExperimentStep={handleExperimentStep}
+              onMaterialsRemoved={handleMaterialsRemoved}
               selectedItem={selectedItem}
               onItemPlaced={() => setSelectedItem(null)}
               onMetalChange={setActiveMetal}
@@ -197,6 +219,7 @@ const Index = () => {
             selectedItem={selectedItem}
             onSelect={setSelectedItem}
             onExperimentStep={handleExperimentStep}
+            onMaterialsRemoved={handleMaterialsRemoved}
             onItemPlaced={() => setSelectedItem(null)}
             onMetalChange={setActiveMetal}
             onWaterTempChange={setContainerWaterTemp}
@@ -221,6 +244,9 @@ const Index = () => {
           <ExperimentReport
             steps={experimentSteps}
             calorimetryData={calorimetryData}
+            hiddenMaterialIds={hiddenReportMaterialIds}
+            deskRemovedMaterialIds={deskRemovedMaterialIds}
+            onHideMaterial={handleHideReportMaterial}
             onClose={() => setShowReport(false)}
             onClear={handleClearReport}
           />

@@ -74,6 +74,17 @@ const chartConfig = {
 const FIXED_TICK_WIDTH = 36;
 const RECORD_INTERVAL_MS = RECORD_INTERVAL_SEC * 1000;
 
+function makeExportFilename(value: string, fallback: string, extension: "xlsx"): string {
+  const trimmed = value.trim();
+  const safeBase = (trimmed || fallback)
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/[. ]+$/g, "")
+    .slice(0, 80);
+  const filename = safeBase || fallback;
+  return filename.toLowerCase().endsWith(`.${extension}`) ? filename : `${filename}.${extension}`;
+}
+
 export default function ThermalAnalysisPanel({
   activeMetal,
   waterTemp,
@@ -90,6 +101,7 @@ export default function ThermalAnalysisPanel({
   const [pressure, setPressure] = useState(101.325);
   const [dataPoints, setDataPoints] = useState<ThermalDataPoint[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [excelFileName, setExcelFileName] = useState("thermal_analysis");
   const timeRef = useRef(0);
   const lastTempRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -215,11 +227,11 @@ export default function ThermalAnalysisPanel({
         waterMass,
         metalName: metal?.name,
         specificHeat: metal?.specificHeat,
-      });
+      }, makeExportFilename(excelFileName, "thermal_analysis", "xlsx"));
     } finally {
       setExporting(false);
     }
-  }, [dataPoints, atmosphericTemp, pressure, metalMass, metalTemp, waterMass, metal, exporting]);
+  }, [dataPoints, atmosphericTemp, pressure, metalMass, metalTemp, waterMass, metal, exporting, excelFileName]);
 
   const graphWidth = Math.max(280, displayData.length * FIXED_TICK_WIDTH);
   const yMin = Math.min(...displayData.map((d) => d.temp), atmosphericTemp);
@@ -318,21 +330,30 @@ export default function ThermalAnalysisPanel({
         )}
 
         <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Temperature Graph</p>
-            <div className="flex items-center gap-1">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Temperature Graph</p>
               {dataPoints.length > 0 && (
-                <>
-                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1" onClick={handleClearGraph}>
-                    <Trash2 className="w-3 h-3" /> Clear
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1"
-                    onClick={handleExportExcel} disabled={exporting}>
-                    <Download className="w-3 h-3" /> {exporting ? "..." : "Excel"}
-                  </Button>
-                </>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1" onClick={handleClearGraph}>
+                  <Trash2 className="w-3 h-3" /> Clear
+                </Button>
               )}
             </div>
+            {dataPoints.length > 0 && (
+              <div className="flex items-center gap-1">
+                <input
+                  value={excelFileName}
+                  onChange={(event) => setExcelFileName(event.target.value)}
+                  className="h-6 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-[10px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+                  placeholder="Excel file name"
+                  title="Excel file name"
+                />
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1"
+                  onClick={handleExportExcel} disabled={exporting}>
+                  <Download className="w-3 h-3" /> {exporting ? "..." : "Excel"}
+                </Button>
+              </div>
+            )}
           </div>
 
           <div ref={graphScrollRef} className="h-44 overflow-x-auto overflow-y-hidden">

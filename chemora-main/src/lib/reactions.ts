@@ -17,12 +17,21 @@ export interface Apparatus {
   category: "container" | "heating" | "measuring" | "safety" | "mixing" | "filtering" | "collection";
 }
 
+export interface ExperimentMaterial {
+  id: string;
+  name: string;
+  label: string;
+  category: "container" | "chemical" | "heating" | "measuring" | "mixing" | "safety" | "other";
+}
+
 export interface ExperimentStep {
   timestamp: Date;
   beakerLabel: string;
   chemicals: Chemical[];
   reaction: Reaction | null;
   apparatus: string[];
+  materialOnly?: boolean;
+  material?: ExperimentMaterial;
 }
 
 // ──── IMPORT DATA FROM NEW STRUCTURE ────
@@ -46,8 +55,6 @@ export const APPARATUSES: Apparatus[] = [
   { id: "tripod", name: "Tripod & Gauze", icon: "🔺", description: "Support stand for heating apparatus", category: "heating" },
   { id: "thermometer", name: "Thermometer", icon: "🌡️", description: "Measures temperature of reactions", category: "measuring" },
   { id: "ph-meter", name: "pH Meter", icon: "📊", description: "Measures acidity or alkalinity", category: "measuring" },
-  { id: "filter-funnel", name: "Filter Funnel", icon: "🔽", description: "Separates solids from liquids", category: "filtering" },
-  { id: "filter-paper", name: "Filter Paper", icon: "📄", description: "Porous paper that traps insoluble solids during filtration", category: "filtering" },
   { id: "connecting-tube", name: "Connecting Tube", icon: "🔗", description: "Transfers solution between two containers", category: "mixing" },
   { id: "spatula", name: "Spatula", icon: "🥄", description: "Transfers small amounts of solid chemicals", category: "mixing" },
   { id: "glass-rod", name: "Glass Rod", icon: "🪄", description: "Stirring rod for mixing solutions", category: "mixing" },

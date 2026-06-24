@@ -15,8 +15,6 @@ export const APPARATUSES: Apparatus[] = [
   { id: "tripod", name: "Tripod & Gauze", icon: "\u{1F53A}", description: "Support stand for heating apparatus", category: "heating" },
   { id: "thermometer", name: "Thermometer", icon: "\u{1F321}\uFE0F", description: "Measures temperature of reactions", category: "measuring" },
   { id: "ph-meter", name: "pH Meter", icon: "\u{1F4CA}", description: "Measures acidity or alkalinity", category: "measuring" },
-  { id: "filter-funnel", name: "Filter Funnel", icon: "\u{1F53D}", description: "Separates solids from liquids", category: "filtering" },
-  { id: "filter-paper", name: "Filter Paper", icon: "\u{1F4C4}", description: "Porous paper that traps insoluble solids during filtration", category: "filtering" },
   { id: "connecting-tube", name: "Connecting Tube", icon: "\u{1F517}", description: "Transfers solution between two containers", category: "mixing" },
   { id: "spatula", name: "Spatula", icon: "\u{1F944}", description: "Transfers small amounts of solid chemicals", category: "mixing" },
   { id: "glass-rod", name: "Glass Rod", icon: "\u{1FA84}", description: "Stirring rod for mixing solutions", category: "mixing" },
