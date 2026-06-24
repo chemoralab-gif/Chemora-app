@@ -1,5 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Chemical, Apparatus, findReaction, findReactionWithHeat, Reaction, ExperimentStep, CHEMICAL_PH, APPARATUS_EFFECTS } from "@/lib/reactions";
+import {
+  calculateReactionPeakTemp,
+  formatThermalTemp,
+  K_COOLING_BASE,
+  newtonCoolingStep,
+  STANDARD_WATER_MASS,
+} from "@/lib/thermalCurve";
 
 import ReactionInfo from "./ReactionInfo";
 import ContainerSlot from "./ContainerSlot";
@@ -62,11 +69,22 @@ function calculatePH(chemicals: Chemical[]): number | null {
   return Math.round(total / phChemicals.length * 10) / 10;
 }
 
-function calculateTemperature(base: number, apparatuses: Apparatus[], reaction: Reaction | null, burnerTemp: number = 300): number {
-  let temp = base; // base should be atmosphericTemp
+function estimateWaterMass(chemicals: Chemical[]): number {
+  const water = chemicals.filter((c) => c.formula === "H₂O" || c.id === "water");
+  return water.length > 0 ? water.length * STANDARD_WATER_MASS : STANDARD_WATER_MASS;
+}
+
+function calculateTemperature(
+  base: number,
+  apparatuses: Apparatus[],
+  reaction: Reaction | null,
+  burnerTemp: number = 300,
+  chemicals: Chemical[] = []
+): number {
+  let temp = base;
   const hasBurner = apparatuses.some((a) => a.id === "bunsen-burner");
   if (hasBurner) {
-    temp = burnerTemp; // Burner SETS temp to its value, not adds
+    temp = burnerTemp;
   } else {
     for (const a of apparatuses) {
       const effect = APPARATUS_EFFECTS[a.id];
@@ -74,10 +92,9 @@ function calculateTemperature(base: number, apparatuses: Apparatus[], reaction: 
     }
   }
   if (reaction) {
-    // Use reaction's temperatureChange property (positive for exothermic, negative for endothermic)
-    temp += reaction.temperatureChange;
+    temp = calculateReactionPeakTemp(temp, reaction, estimateWaterMass(chemicals));
   }
-  return Math.round(temp);
+  return formatThermalTemp(temp);
 }
 
 function calculatePhaseChanges(chemicals: Chemical[], apparatuses: Apparatus[], burnerTemp: number = 300): PhaseChange[] {
@@ -196,37 +213,34 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
     }
   }, [containers, onWaterTempChange, atmosphericTemp]);
 
-  // Newton's Law of Cooling: dT/dt = -k(T - Tenv)
-  // k is affected by pressure: k_eff = k_base * (P / 101.325)
-  // Cooling bath: uses forced convection coefficient (~3x natural), targets coolingTarget temp
   const coolingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const K_BASE = 0.03; // base cooling constant (natural convection)
-  
+
   useEffect(() => {
     const tEnv = atmosphericTemp;
-    const kBase = K_BASE * (pressure / 101.325);
-    const hasActiveReaction = containers.some((c) => c.reaction && c.temperature > tEnv + 0.5 && !c.reactionComplete);
-    
+    const hasActiveReaction = containers.some((c) => {
+      if (!c.reaction || c.reactionComplete) return false;
+      const hasCoolingBath = c.attachedApparatuses.some((a) => a.id === "cooling-bath");
+      const targetTemp = hasCoolingBath ? Math.max(c.coolingTarget, tEnv) : tEnv;
+      return Math.abs(c.temperature - targetTemp) > 0.5;
+    });
+
     if (hasActiveReaction && !coolingRef.current) {
       coolingRef.current = setInterval(() => {
         setContainers((prev) => {
-          let anyStillCooling = false;
+          let anyStillEquilibrating = false;
           const updated = prev.map((c) => {
             if (!c.reaction || c.reactionComplete) return c;
             const hasCoolingBath = c.attachedApparatuses.some((a) => a.id === "cooling-bath");
-            // Cooling bath: forced convection ~3x faster, targets coolingTarget
             const targetTemp = hasCoolingBath ? Math.max(c.coolingTarget, tEnv) : tEnv;
-            if (c.temperature <= targetTemp + 0.5) {
-              return { ...c, temperature: Math.round(targetTemp), showEffect: false, reactionComplete: true };
+            if (Math.abs(c.temperature - targetTemp) <= 0.5) {
+              return { ...c, temperature: formatThermalTemp(targetTemp), showEffect: false, reactionComplete: true };
             }
-            anyStillCooling = true;
-            // Forced convection (cooling bath): h ≈ 50-250 W/m²K vs natural 5-25 W/m²K → ~3x
-            const kEff = hasCoolingBath ? kBase * 3.0 : kBase;
-            const dT = kEff * (c.temperature - targetTemp);
-            const newTemp = Math.max(targetTemp, c.temperature - dT);
-            return { ...c, temperature: Math.round(newTemp) };
+            anyStillEquilibrating = true;
+            const convection = hasCoolingBath ? 3.0 : 1.0;
+            const newTemp = newtonCoolingStep(c.temperature, targetTemp, 1, K_COOLING_BASE, pressure, convection);
+            return { ...c, temperature: newTemp };
           });
-          if (!anyStillCooling && coolingRef.current) {
+          if (!anyStillEquilibrating && coolingRef.current) {
             clearInterval(coolingRef.current);
             coolingRef.current = null;
           }
@@ -234,9 +248,17 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
         });
       }, 1000);
     }
-    
+
     return () => {
-      if (coolingRef.current && !containers.some((c) => c.reaction && c.temperature > tEnv + 0.5 && !c.reactionComplete)) {
+      if (
+        coolingRef.current &&
+        !containers.some((c) => {
+          if (!c.reaction || c.reactionComplete) return false;
+          const hasCoolingBath = c.attachedApparatuses.some((a) => a.id === "cooling-bath");
+          const targetTemp = hasCoolingBath ? Math.max(c.coolingTarget, tEnv) : tEnv;
+          return Math.abs(c.temperature - targetTemp) > 0.5;
+        })
+      ) {
         clearInterval(coolingRef.current);
         coolingRef.current = null;
       }
@@ -382,7 +404,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
 
             const pH = calculatePH(mergedChemicals);
             const newApparatuses = [...toContainer.attachedApparatuses.filter((a) => a.id !== "connecting-tube"), apparatus];
-            const temp = calculateTemperature(atmosphericTemp, newApparatuses, reaction, toContainer.burnerTemperature);
+            const temp = calculateTemperature(atmosphericTemp, newApparatuses, reaction, toContainer.burnerTemperature, mergedChemicals);
             const phaseChanges = calculatePhaseChanges(mergedChemicals, newApparatuses, toContainer.burnerTemperature);
             const filterSeparation = calculateFilterSeparation(mergedChemicals, newApparatuses);
 
@@ -419,7 +441,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
             }
           }
           
-          const temp = calculateTemperature(atmosphericTemp, newApparatuses, reaction, c.burnerTemperature);
+          const temp = calculateTemperature(atmosphericTemp, newApparatuses, reaction, c.burnerTemperature, c.chemicals);
           const phaseChanges = calculatePhaseChanges(c.chemicals, newApparatuses, c.burnerTemperature);
           const filterSeparation = calculateFilterSeparation(c.chemicals, newApparatuses);
           const gases = collectGases(c.chemicals, phaseChanges, newApparatuses);
@@ -466,7 +488,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
         }
 
         const pH = calculatePH(newChemicals);
-        const temp = calculateTemperature(atmosphericTemp, c.attachedApparatuses, reaction, c.burnerTemperature);
+        const temp = calculateTemperature(atmosphericTemp, c.attachedApparatuses, reaction, c.burnerTemperature, newChemicals);
         const phaseChanges = calculatePhaseChanges(newChemicals, c.attachedApparatuses, c.burnerTemperature);
         const filterSeparation = calculateFilterSeparation(newChemicals, c.attachedApparatuses);
         const gases = collectGases(newChemicals, phaseChanges, c.attachedApparatuses);
@@ -520,7 +542,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
           }
         }
         
-        const temp = calculateTemperature(atmosphericTemp, c.attachedApparatuses, reaction, newBurnerTemp);
+        const temp = calculateTemperature(atmosphericTemp, c.attachedApparatuses, reaction, newBurnerTemp, c.chemicals);
         const phaseChanges = calculatePhaseChanges(c.chemicals, c.attachedApparatuses, newBurnerTemp);
         const scaledReaction = reaction ? { ...reaction, intensity: Math.round(reaction.intensity * (newBurnerTemp / 300) * 10) / 10 } : null;
         const gases = collectGases(c.chemicals, phaseChanges, c.attachedApparatuses);
@@ -557,12 +579,12 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
 
       const targetApparatuses = target.attachedApparatuses.filter((a) => a.id !== "connecting-tube");
       const targetPH = calculatePH(restoredTargetChemicals);
-      const targetTemp = calculateTemperature(atmosphericTemp, targetApparatuses, null, target.burnerTemperature);
+      const targetTemp = calculateTemperature(atmosphericTemp, targetApparatuses, null, target.burnerTemperature, restoredTargetChemicals);
       const targetPhaseChanges = calculatePhaseChanges(restoredTargetChemicals, targetApparatuses, target.burnerTemperature);
       const targetFilterSeparation = calculateFilterSeparation(restoredTargetChemicals, targetApparatuses);
 
       const sourceApparatuses = source.attachedApparatuses.filter((a) => a.id !== "connecting-tube");
-      const sourceTemp = calculateTemperature(atmosphericTemp, sourceApparatuses, source.reaction, source.burnerTemperature);
+      const sourceTemp = calculateTemperature(atmosphericTemp, sourceApparatuses, source.reaction, source.burnerTemperature, source.chemicals);
 
       return prev.map((c) => {
         if (c.id === source.id) return { ...c, connectedTo: null, attachedApparatuses: sourceApparatuses, temperature: sourceTemp };
@@ -652,7 +674,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
             }
             const pH = calculatePH(mergedChemicals);
             const newApparatuses = [...toContainer.attachedApparatuses.filter((a) => a.id !== "connecting-tube"), apparatus];
-            const temp = calculateTemperature(atmosphericTemp, newApparatuses, reaction, toContainer.burnerTemperature);
+            const temp = calculateTemperature(atmosphericTemp, newApparatuses, reaction, toContainer.burnerTemperature, mergedChemicals);
             const phaseChanges = calculatePhaseChanges(mergedChemicals, newApparatuses, toContainer.burnerTemperature);
             const filterSeparation = calculateFilterSeparation(mergedChemicals, newApparatuses);
             if (reaction) {
@@ -674,7 +696,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
         prev.map((c) => {
           if (c.id !== containerId || c.attachedApparatuses.find((a) => a.id === apparatus.id)) return c;
           const newApparatuses = [...c.attachedApparatuses, apparatus];
-          const temp = calculateTemperature(atmosphericTemp, newApparatuses, c.reaction, c.burnerTemperature);
+          const temp = calculateTemperature(atmosphericTemp, newApparatuses, c.reaction, c.burnerTemperature, c.chemicals);
           const phaseChanges = calculatePhaseChanges(c.chemicals, newApparatuses, c.burnerTemperature);
           const filterSeparation = calculateFilterSeparation(c.chemicals, newApparatuses);
           const gases = collectGases(c.chemicals, phaseChanges, newApparatuses);
@@ -702,7 +724,7 @@ export default function EquipmentArea({ onExperimentStep, selectedItem, onItemPl
           }
         }
         const pH = calculatePH(newChemicals);
-        const temp = calculateTemperature(atmosphericTemp, c.attachedApparatuses, reaction, c.burnerTemperature);
+        const temp = calculateTemperature(atmosphericTemp, c.attachedApparatuses, reaction, c.burnerTemperature, newChemicals);
         const phaseChanges = calculatePhaseChanges(newChemicals, c.attachedApparatuses, c.burnerTemperature);
         const filterSeparation = calculateFilterSeparation(newChemicals, c.attachedApparatuses);
         const gases = collectGases(newChemicals, phaseChanges, c.attachedApparatuses);
