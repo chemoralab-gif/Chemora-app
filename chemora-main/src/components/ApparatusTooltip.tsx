@@ -28,8 +28,8 @@ export default function ApparatusTooltip({ apparatus }: ApparatusTooltipProps) {
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="text-[10px] bg-secondary/80 rounded px-1 cursor-help hover:bg-secondary transition-colors">
-            {apparatus.icon}
+          <span className="max-w-24 truncate text-[9px] font-medium text-primary bg-secondary/80 border border-primary/20 rounded px-1.5 py-0.5 cursor-help hover:bg-secondary transition-colors">
+            {apparatus.name}
           </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-56 space-y-1 text-left">

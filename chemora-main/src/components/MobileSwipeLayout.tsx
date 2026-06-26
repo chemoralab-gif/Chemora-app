@@ -7,6 +7,7 @@ import { useSwipe } from "@/hooks/use-swipe";
 import type { SelectedItem } from "@/pages/Index";
 import type { Chemical, Apparatus, ExperimentStep } from "@/lib/reactions";
 import type { CalorimetryData } from "@/components/types/thermal";
+import { X } from "lucide-react";
 
 interface MobileSwipeLayoutProps {
   onDragStart: (chemical: Chemical) => void;
@@ -95,6 +96,14 @@ export default function MobileSwipeLayout({
     finishSwipeHints();
   };
 
+  const handlePaletteSelect = (item: SelectedItem) => {
+    onSelect(item);
+    if (item) {
+      setPanelPosition(0);
+      finishSwipeHints();
+    }
+  };
+
   return (
     <div className="flex flex-1 overflow-hidden relative bg-background">
       {/* Left Panel - Chemicals */}
@@ -115,9 +124,7 @@ export default function MobileSwipeLayout({
               onApparatusDragStart(a);
             }}
             selectedItem={selectedItem}
-            onSelect={(item) => {
-              onSelect(item);
-            }}
+            onSelect={handlePaletteSelect}
           />
         </div>
       </div>
@@ -129,6 +136,23 @@ export default function MobileSwipeLayout({
         }`}
       >
         <div className="w-full h-full flex flex-col relative">
+          {selectedItem && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border-b border-primary/20 text-primary">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold">{selectedItem.data.name}</p>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  Tap the desk to place a container, or tap a container to add it.
+                </p>
+              </div>
+              <button
+                onClick={() => onSelect(null)}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-primary/25 text-primary hover:bg-primary/10"
+                title="Deselect"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
           <EquipmentArea
             onExperimentStep={onExperimentStep}
             onMaterialsRemoved={onMaterialsRemoved}

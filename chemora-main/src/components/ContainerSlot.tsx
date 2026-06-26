@@ -341,7 +341,6 @@ export default function ContainerSlot({
 
       {/* Label */}
       <div className="flex items-center gap-1.5 text-muted-foreground">
-        <span className="text-base">{container.apparatus.icon}</span>
         <span className="text-xs font-medium">{container.label}</span>
       </div>
 

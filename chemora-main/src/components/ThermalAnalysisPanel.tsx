@@ -10,10 +10,8 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
 import { CalorimetryData, ThermalDataPoint } from "@/components/types/thermal";
 import {
-  buildDisplayThermalCurve,
   C_WATER,
   formatThermalTemp,
-  MIN_EXPORT_POINTS,
   prepareExportThermalData,
   RECORD_INTERVAL_SEC,
 } from "@/lib/thermalCurve";
@@ -74,6 +72,22 @@ const chartConfig = {
 const FIXED_TICK_WIDTH = 36;
 const RECORD_INTERVAL_MS = RECORD_INTERVAL_SEC * 1000;
 
+function formatAxisNumber(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+function buildTimeTicks(maxTime: number): number[] {
+  const end = Math.max(0, formatThermalTemp(maxTime));
+  if (end === 0) return [0];
+  const step = end < 5 ? 0.5 : 1;
+  const ticks: number[] = [];
+  for (let t = 0; t <= end + 1e-9; t += step) {
+    ticks.push(formatThermalTemp(t));
+  }
+  if (ticks[ticks.length - 1] !== end) ticks.push(end);
+  return Array.from(new Set(ticks));
+}
+
 function makeExportFilename(value: string, fallback: string, extension: "xlsx"): string {
   const trimmed = value.trim();
   const safeBase = (trimmed || fallback)
@@ -125,10 +139,7 @@ export default function ThermalAnalysisPanel({
   const qMetal = metal && tFinal !== null ? metalMass * metal.specificHeat * (metalTemp - tFinal) : 0;
   const qWater = tFinal !== null ? waterMass * C_WATER * (tFinal - effectiveWaterTemp) : 0;
 
-  const displayData = useMemo(
-    () => buildDisplayThermalCurve(dataPoints, atmosphericTemp, MIN_EXPORT_POINTS, pressure),
-    [dataPoints, atmosphericTemp, pressure]
-  );
+  const displayData = dataPoints;
 
   const isCoolingCurve = displayData.some((d) => d.temp < atmosphericTemp);
 
@@ -190,6 +201,15 @@ export default function ThermalAnalysisPanel({
       setDataPoints((prev) => [...prev, { time: timeRef.current, temp: formatThermalTemp(atmosphericTemp) }]);
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+      lastTempRef.current = null;
+    } else if (
+      currentReactionTemp === null &&
+      lastTempRef.current !== null &&
+      Math.abs(lastTempRef.current - atmosphericTemp) > 0.5
+    ) {
+      timeRef.current += RECORD_INTERVAL_SEC;
+      setDataPoints((prev) => [...prev, { time: timeRef.current, temp: formatThermalTemp(atmosphericTemp) }]);
+      lastTempRef.current = null;
     }
     return () => {};
   }, [currentReactionTemp, atmosphericTemp]);
@@ -216,7 +236,6 @@ export default function ThermalAnalysisPanel({
       const exportData = prepareExportThermalData(
         dataPoints,
         atmosphericTemp,
-        MIN_EXPORT_POINTS,
         pressure
       );
       await exportThermalExcel(exportData, {
@@ -233,7 +252,9 @@ export default function ThermalAnalysisPanel({
     }
   }, [dataPoints, atmosphericTemp, pressure, metalMass, metalTemp, waterMass, metal, exporting, excelFileName]);
 
-  const graphWidth = Math.max(280, displayData.length * FIXED_TICK_WIDTH);
+  const finalTime = displayData[displayData.length - 1]?.time ?? 0;
+  const xTicks = buildTimeTicks(finalTime);
+  const graphWidth = Math.max(280, xTicks.length * FIXED_TICK_WIDTH);
   const yMin = Math.min(...displayData.map((d) => d.temp), atmosphericTemp);
   const yMax = Math.max(...displayData.map((d) => d.temp), atmosphericTemp);
   const slidersLocked = isActive;
@@ -376,11 +397,13 @@ export default function ThermalAnalysisPanel({
                   <LineChart data={displayData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
                     <XAxis dataKey="time" tick={{ fontSize: 9 }} type="number"
-                      domain={["dataMin", "dataMax"]}
-                      tickCount={Math.min(displayData.length, 8)}
+                      domain={[0, Math.max(finalTime, 0.5)]}
+                      ticks={xTicks}
+                      tickFormatter={formatAxisNumber}
                       label={{ value: "Time (s)", position: "bottom", fontSize: 9, offset: -5 }} />
                     <YAxis tick={{ fontSize: 9 }}
                       domain={[Math.floor(yMin - 8), Math.ceil(yMax + 8)]}
+                      tickFormatter={(value) => `${Math.round(Number(value))}`}
                       label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }} />
                     <ReferenceLine y={atmosphericTemp} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5"
                       label={{ value: `${atmosphericTemp}°C`, fontSize: 8, fill: "hsl(var(--muted-foreground))" }} />

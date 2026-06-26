@@ -166,8 +166,7 @@ const Index = () => {
       {selectedItem && !isMobile && (
         <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-primary/10 border-b border-primary/20 text-xs text-primary font-medium animate-fade-in">
           <span>
-            {selectedItem.type === "chemical" ? "🧪" : "🔧"}{" "}
-            {selectedItem.type === "chemical" ? selectedItem.data.name : selectedItem.data.name} selected
+            {selectedItem.data.name} selected
           </span>
           <span className="text-muted-foreground">— tap a container or the desk to place it</span>
         </div>

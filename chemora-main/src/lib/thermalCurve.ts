@@ -128,7 +128,6 @@ export function resampleThermalData(
 export function prepareExportThermalData(
   recorded: ThermalDataPoint[],
   envTemp: number,
-  minPoints: number = MIN_EXPORT_POINTS,
   pressureKpa: number = 101.325
 ): ThermalDataPoint[] {
   const formatted = recorded.map((d) => ({
@@ -136,34 +135,10 @@ export function prepareExportThermalData(
     temp: formatThermalTemp(d.temp),
   }));
 
-  if (formatted.length >= minPoints) {
-    const uniqueTemps = new Set(formatted.map((d) => d.temp));
-    if (uniqueTemps.size >= minPoints) return formatted;
-  }
+  if (formatted.length === 0) return [{ time: 0, temp: formatThermalTemp(envTemp) }];
+  if (formatted.length === 1) return formatted;
 
-  if (formatted.length >= 2) {
-    const resampled = resampleThermalData(formatted, minPoints);
-    if (new Set(resampled.map((d) => d.temp)).size >= Math.min(minPoints, 5)) return resampled;
-  }
-
-  const startTemp = formatted.length > 0 ? formatted[0].temp : envTemp;
-  const peakTemp =
-    formatted.length > 0
-      ? formatted.reduce(
-          (extreme, d) =>
-            Math.abs(d.temp - envTemp) > Math.abs(extreme - envTemp) ? d.temp : extreme,
-          formatted[0].temp
-        )
-      : envTemp;
-
-  const duration =
-    formatted.length > 1 ? Math.max(formatted[formatted.length - 1].time, minPoints - 1) : 30;
-
-  return generateReactionThermalCurve(startTemp, peakTemp, envTemp, {
-    totalDuration: duration,
-    minPoints,
-    pressureKpa,
-  });
+  return formatted;
 }
 
 export function buildDisplayThermalCurve(

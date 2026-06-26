@@ -19,6 +19,22 @@ interface ChartRenderOptions {
   isCooling?: boolean;
 }
 
+function formatAxisNumber(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+function buildTimeTicks(maxTime: number): number[] {
+  const end = Math.max(0, formatThermalTemp(maxTime));
+  if (end === 0) return [0];
+  const step = end < 5 ? 0.5 : 1;
+  const ticks: number[] = [];
+  for (let t = 0; t <= end + 1e-9; t += step) {
+    ticks.push(formatThermalTemp(t));
+  }
+  if (ticks[ticks.length - 1] !== end) ticks.push(end);
+  return Array.from(new Set(ticks));
+}
+
 /** Render a line chart to PNG bytes using Canvas API */
 export function renderThermalLineChartPng(
   data: ThermalDataPoint[],
@@ -38,8 +54,8 @@ export function renderThermalLineChartPng(
 
   const temps = data.map((d) => d.temp);
   const times = data.map((d) => d.time);
-  const minT = Math.min(...temps, options.envTemp) - 5;
-  const maxT = Math.max(...temps, options.envTemp) + 5;
+  const minT = Math.floor(Math.min(...temps, options.envTemp) - 5);
+  const maxT = Math.ceil(Math.max(...temps, options.envTemp) + 5);
   const minTime = times[0];
   const maxTime = times[times.length - 1];
 
@@ -71,12 +87,11 @@ export function renderThermalLineChartPng(
     ctx.fillStyle = "#6b7280";
     ctx.font = "11px Segoe UI, Arial, sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(`${formatThermalTemp(temp)}°C`, padding.left - 8, y + 4);
+    ctx.fillText(`${Math.round(temp)}°C`, padding.left - 8, y + 4);
   }
 
-  const xTicks = Math.min(data.length, 10);
-  for (let i = 0; i <= xTicks; i++) {
-    const t = minTime + (i / xTicks) * (maxTime - minTime);
+  const xTicks = buildTimeTicks(maxTime);
+  xTicks.forEach((t) => {
     const x = toX(t);
     ctx.strokeStyle = "#e5e7eb";
     ctx.beginPath();
@@ -85,8 +100,8 @@ export function renderThermalLineChartPng(
     ctx.stroke();
     ctx.fillStyle = "#6b7280";
     ctx.textAlign = "center";
-    ctx.fillText(`${formatThermalTemp(t)}`, x, padding.top + plotH + 20);
-  }
+    ctx.fillText(formatAxisNumber(t), x, padding.top + plotH + 20);
+  });
 
   // Axis labels
   ctx.fillStyle = "#374151";
@@ -185,7 +200,7 @@ export async function exportThermalExcel(
     extension: "png",
   });
   graphSheet.addImage(imageId, {
-    tl: { col: 0.5, row: 1 },
+    tl: { col: 0, row: 0 },
     ext: { width: 720, height: 400 },
   });
 
@@ -193,6 +208,14 @@ export async function exportThermalExcel(
   graphSheet.getCell("A24").font = { bold: true, size: 12, color: { argb: "FF1A1A2E" } };
   graphSheet.getCell("A25").value = `${data.length} readings · Peak ${formatThermalTemp(maxTemp)}°C · Final ${formatThermalTemp(finalTemp)}°C`;
   graphSheet.getCell("A25").font = { size: 10, color: { argb: "FF6B7280" } };
+  graphSheet.getCell("A27").value = "Time (s)";
+  graphSheet.getCell("B27").value = "Temperature (°C)";
+  graphSheet.getRow(27).font = { bold: true };
+  data.forEach((d, index) => {
+    const row = graphSheet.getRow(28 + index);
+    row.getCell(1).value = d.time;
+    row.getCell(2).value = d.temp;
+  });
 
   // Sheet 2: Numeric data table (supporting the chart)
   const dataSheet = workbook.addWorksheet("Data");

@@ -6,6 +6,7 @@ import { ELEMENT_SUBCATEGORIES } from "@/lib/elements";
 import { Search, FlaskConical, Wrench, Atom, Beaker, RadioTower } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { SelectedItem } from "@/pages/Index";
 
 function StateShape({ state, color }: { state: string; color: string }) {
@@ -147,51 +148,111 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chemicals" className="flex-1 overflow-y-auto p-3 space-y-3 mt-0">
-          {groupedChemicals.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4">No chemicals found</p>
-          )}
-          {groupedChemicals.map(({ category, subcategories }) => (
-            <div key={category}>
-              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                {category === "metal" || category === "noble-gas" ? <Atom className="w-3 h-3" /> : category === "acid" || category === "alkali" ? <FlaskConical className="w-3 h-3" /> : <Beaker className="w-3 h-3" />}
-                {CHEMICAL_CATEGORIES[category] || category}
-              </h3>
-              {Object.entries(subcategories).map(([sub, chemicals]) => (
-                <div key={sub} className="mb-1">
-                  {sub !== "_default" && ELEMENT_SUBCATEGORIES[sub] && (
-                    <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider ml-2 mb-0.5">
-                      {ELEMENT_SUBCATEGORIES[sub]}
-                    </p>
-                  )}
+        <TabsContent value="chemicals" className="flex-1 min-h-0 mt-0">
+          <ScrollArea className="h-full">
+            <div className="p-3 pr-4 space-y-3">
+              {groupedChemicals.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">No chemicals found</p>
+              )}
+              {groupedChemicals.map(({ category, subcategories }) => (
+                <div key={category}>
+                  <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    {category === "metal" || category === "noble-gas" ? <Atom className="w-3 h-3" /> : category === "acid" || category === "alkali" ? <FlaskConical className="w-3 h-3" /> : <Beaker className="w-3 h-3" />}
+                    {CHEMICAL_CATEGORIES[category] || category}
+                  </h3>
+                  {Object.entries(subcategories).map(([sub, chemicals]) => (
+                    <div key={sub} className="mb-1">
+                      {sub !== "_default" && ELEMENT_SUBCATEGORIES[sub] && (
+                        <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider ml-2 mb-0.5">
+                          {ELEMENT_SUBCATEGORIES[sub]}
+                        </p>
+                      )}
+                      <div className="space-y-0.5">
+                        {chemicals.map((chemical) => (
+                          <div
+                            key={chemical.id}
+                            draggable
+                            onClick={() => handleChemicalClick(chemical)}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("chemical", JSON.stringify(chemical));
+                              e.dataTransfer.setData("type", "chemical");
+                              onDragStart(chemical);
+                            }}
+                            className={`flex items-center gap-2 px-2 py-1 rounded-md bg-secondary/30 hover:bg-secondary cursor-pointer active:scale-[0.97] transition-all border ${
+                              isChemicalSelected(chemical)
+                                ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                                : "border-transparent hover:border-primary/20"
+                            }`}
+                          >
+                            <StateShape state={chemical.state} color={chemical.color} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[11px] text-foreground truncate">{chemical.name}</span>
+                                {chemical.radioactive && <RadioTower className="w-2.5 h-2.5 text-destructive flex-shrink-0" />}
+                              </div>
+                              <div className="text-[9px] font-mono text-muted-foreground">{chemical.formula}</div>
+                            </div>
+                            <div className="flex flex-col items-end gap-0.5">
+                              <RatingDots value={chemical.reactivity} color="hsl(var(--accent))" />
+                              <RatingDots value={chemical.stability} color="hsl(var(--primary))" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {/* Legend */}
+              <div className="pt-2 border-t border-border space-y-1">
+                <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+                  <RatingDots value={5} max={5} color="hsl(var(--accent))" /> Reactivity
+                </div>
+                <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+                  <RatingDots value={5} max={5} color="hsl(var(--primary))" /> Stability
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="apparatus" className="flex-1 min-h-0 mt-0">
+          <ScrollArea className="h-full">
+            <div className="p-3 pr-4 space-y-4">
+              {groupedApparatuses.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">No apparatus found</p>
+              )}
+              {groupedApparatuses.map(([category, apparatuses]) => (
+                <div key={category}>
+                  <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Wrench className="w-3 h-3" />
+                    {APPARATUS_CATEGORIES[category] || category}
+                  </h3>
                   <div className="space-y-0.5">
-                    {chemicals.map((chemical) => (
+                    {apparatuses.map((apparatus) => (
                       <div
-                        key={chemical.id}
+                        key={apparatus.id}
                         draggable
-                        onClick={() => handleChemicalClick(chemical)}
+                        onClick={() => handleApparatusClick(apparatus)}
                         onDragStart={(e) => {
-                          e.dataTransfer.setData("chemical", JSON.stringify(chemical));
-                          e.dataTransfer.setData("type", "chemical");
-                          onDragStart(chemical);
+                          e.dataTransfer.setData("apparatus", JSON.stringify(apparatus));
+                          e.dataTransfer.setData("type", "apparatus");
+                          onApparatusDragStart(apparatus);
                         }}
-                        className={`flex items-center gap-2 px-2 py-1 rounded-md bg-secondary/30 hover:bg-secondary cursor-pointer active:scale-[0.97] transition-all border ${
-                          isChemicalSelected(chemical)
+                        className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md bg-secondary/30 hover:bg-secondary cursor-pointer active:scale-[0.97] transition-all border ${
+                          isApparatusSelected(apparatus)
                             ? "border-primary bg-primary/10 ring-1 ring-primary/30"
                             : "border-transparent hover:border-primary/20"
                         }`}
                       >
-                        <StateShape state={chemical.state} color={chemical.color} />
+                        <span className="text-base flex-shrink-0">{apparatus.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[11px] text-foreground truncate">{chemical.name}</span>
-                            {chemical.radioactive && <RadioTower className="w-2.5 h-2.5 text-destructive flex-shrink-0" />}
-                          </div>
-                          <div className="text-[9px] font-mono text-muted-foreground">{chemical.formula}</div>
-                        </div>
-                        <div className="flex flex-col items-end gap-0.5">
-                          <RatingDots value={chemical.reactivity} color="hsl(var(--accent))" />
-                          <RatingDots value={chemical.stability} color="hsl(var(--primary))" />
+                          <div className="text-xs text-foreground truncate">{apparatus.name}</div>
+                          <div className="text-[10px] text-muted-foreground truncate">{apparatus.description}</div>
+                          {/* Show current water amount next to container apparatus for convenience */}
+                          {persistedWater !== null && apparatus.category === "container" && (
+                            <div className="text-[10px] text-muted-foreground/80">Current liquid: {persistedWater} g</div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -199,59 +260,7 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
                 </div>
               ))}
             </div>
-          ))}
-          {/* Legend */}
-          <div className="pt-2 border-t border-border space-y-1">
-            <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
-              <RatingDots value={5} max={5} color="hsl(var(--accent))" /> Reactivity
-            </div>
-            <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
-              <RatingDots value={5} max={5} color="hsl(var(--primary))" /> Stability
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="apparatus" className="flex-1 overflow-y-auto p-3 space-y-4 mt-0">
-          {groupedApparatuses.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4">No apparatus found</p>
-          )}
-          {groupedApparatuses.map(([category, apparatuses]) => (
-            <div key={category}>
-              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <Wrench className="w-3 h-3" />
-                {APPARATUS_CATEGORIES[category] || category}
-              </h3>
-              <div className="space-y-0.5">
-                {apparatuses.map((apparatus) => (
-                  <div
-                    key={apparatus.id}
-                    draggable
-                    onClick={() => handleApparatusClick(apparatus)}
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("apparatus", JSON.stringify(apparatus));
-                      e.dataTransfer.setData("type", "apparatus");
-                      onApparatusDragStart(apparatus);
-                    }}
-                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md bg-secondary/30 hover:bg-secondary cursor-pointer active:scale-[0.97] transition-all border ${
-                      isApparatusSelected(apparatus)
-                        ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                        : "border-transparent hover:border-primary/20"
-                    }`}
-                  >
-                    <span className="text-base flex-shrink-0">{apparatus.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-foreground truncate">{apparatus.name}</div>
-                      <div className="text-[10px] text-muted-foreground truncate">{apparatus.description}</div>
-                      {/* Show current water amount next to container apparatus for convenience */}
-                      {persistedWater !== null && apparatus.category === "container" && (
-                        <div className="text-[10px] text-muted-foreground/80">Current liquid: {persistedWater} g</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+          </ScrollArea>
         </TabsContent>
       </Tabs>
     </div>
