@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Chemical, Apparatus, findReaction, findReactionWithHeat, Reaction, ExperimentStep, CHEMICAL_PH, APPARATUS_EFFECTS } from "@/lib/reactions";
+import { Chemical, Apparatus, findReactionForChemicals, findReactionWithHeat, Reaction, ExperimentStep, CHEMICAL_PH, APPARATUS_EFFECTS } from "@/lib/reactions";
 import {
   calculateReactionPeakTemp,
   formatThermalTemp,
@@ -53,6 +53,7 @@ export interface EquipmentAreaProps {
   onMaterialsRemoved?: (materialIds: string[]) => void;
   selectedItem?: SelectedItem;
   onItemPlaced?: () => void;
+  onTransferSourceChange?: (hasSource: boolean) => void;
   onMetalChange?: (metalName: string | null) => void;
   onWaterTempChange?: (temp: number) => void;
   atmosphericTemp?: number;
@@ -96,6 +97,10 @@ function calculateTemperature(
     temp = calculateReactionPeakTemp(temp, reaction, estimateWaterMass(chemicals));
   }
   return formatThermalTemp(temp);
+}
+
+function findContainerReaction(chemicals: Chemical[]): Reaction | null {
+  return findReactionForChemicals(chemicals);
 }
 
 function calculatePhaseChanges(chemicals: Chemical[], apparatuses: Apparatus[], burnerTemp: number = 300): PhaseChange[] {
@@ -250,7 +255,7 @@ function getActiveMaterialIds(containers: ContainerState[]): Set<string> {
   return new Set(containers.flatMap(getContainerMaterialIds));
 }
 
-export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, selectedItem, onItemPlaced, onMetalChange, onWaterTempChange, atmosphericTemp = 25, pressure = 101.325, onReactionTempChange, onActiveChange }: EquipmentAreaProps) {
+export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, selectedItem, onItemPlaced, onTransferSourceChange, onMetalChange, onWaterTempChange, atmosphericTemp = 25, pressure = 101.325, onReactionTempChange, onActiveChange }: EquipmentAreaProps) {
   const [containers, setContainers] = useState<ContainerState[]>([]);
   const [activeReaction, setActiveReaction] = useState<Reaction | null>(null);
 
@@ -375,6 +380,99 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
   const [benchDragOver, setBenchDragOver] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
+  useEffect(() => {
+    onTransferSourceChange?.(!!connectingFrom);
+  }, [connectingFrom, onTransferSourceChange]);
+
+  useEffect(() => {
+    if (selectedItem?.type === "apparatus" && selectedItem.data.id === "connecting-tube") return;
+    setConnectingFrom(null);
+  }, [selectedItem]);
+
+  const transferContainerContents = useCallback((fromContainerId: string, toContainerId: string) => {
+    if (fromContainerId === toContainerId) return;
+
+    setContainers((prev) => {
+      const fromContainer = prev.find((c) => c.id === fromContainerId);
+      const toContainer = prev.find((c) => c.id === toContainerId);
+      if (!fromContainer || !toContainer) return prev;
+
+      const transferChemicals = [...fromContainer.chemicals];
+      const retainedChemicals: Chemical[] = [];
+      const gasTransfers = fromContainer.collectedGases.map((g) => ({ ...g, state: "gas" as const }));
+      const allTransfers = [...transferChemicals, ...gasTransfers];
+      const transferIds = allTransfers.map((c) => c.id);
+      const mergedChemicals = [...toContainer.chemicals, ...allTransfers];
+
+      let reaction = findContainerReaction(mergedChemicals);
+      let showEffect = false;
+      let solutionColor = toContainer.solutionColor;
+      if (reaction) {
+        showEffect = true;
+        if (reaction.indicatorColor) solutionColor = reaction.indicatorColor;
+      }
+
+      const targetPH = calculatePH(mergedChemicals);
+      const targetTemp = calculateTemperature(atmosphericTemp, toContainer.attachedApparatuses, reaction, toContainer.burnerTemperature, mergedChemicals);
+      const targetPhaseChanges = calculatePhaseChanges(mergedChemicals, toContainer.attachedApparatuses, toContainer.burnerTemperature);
+      const targetFilterSeparation = calculateFilterSeparation(mergedChemicals, toContainer.attachedApparatuses);
+      const targetGases = collectGases(mergedChemicals, targetPhaseChanges, toContainer.attachedApparatuses);
+
+      const sourcePH = calculatePH(retainedChemicals);
+      const sourceReaction = findContainerReaction(retainedChemicals);
+      const sourceTemp = calculateTemperature(atmosphericTemp, fromContainer.attachedApparatuses, sourceReaction, fromContainer.burnerTemperature, retainedChemicals);
+      const sourcePhaseChanges = calculatePhaseChanges(retainedChemicals, fromContainer.attachedApparatuses, fromContainer.burnerTemperature);
+      const sourceFilterSeparation = calculateFilterSeparation(retainedChemicals, fromContainer.attachedApparatuses);
+
+      if (reaction) {
+        setActiveReaction(reaction);
+        onExperimentStep?.({ timestamp: new Date(), beakerLabel: toContainer.label, chemicals: mergedChemicals, reaction, apparatus: toContainer.attachedApparatuses.map((a) => a.name) });
+      }
+
+      return prev.map((c) => {
+        if (c.id === fromContainerId) {
+          return {
+            ...c,
+            chemicals: retainedChemicals,
+            collectedGases: [],
+            reaction: sourceReaction,
+            showEffect: !!sourceReaction,
+            pH: sourcePH,
+            temperature: sourceTemp,
+            solutionColor: sourceReaction?.indicatorColor ?? null,
+            phaseChanges: sourcePhaseChanges,
+            filterSeparation: sourceFilterSeparation,
+            transferredChemicalIds: [],
+            isTransferTarget: false,
+            connectedTo: null,
+            reactionComplete: false,
+          };
+        }
+
+        if (c.id === toContainerId) {
+          return {
+            ...c,
+            chemicals: mergedChemicals,
+            reaction,
+            showEffect,
+            pH: targetPH,
+            temperature: targetTemp,
+            solutionColor,
+            phaseChanges: targetPhaseChanges,
+            filterSeparation: targetFilterSeparation,
+            collectedGases: targetGases,
+            transferredChemicalIds: transferIds,
+            isTransferTarget: true,
+            connectedTo: null,
+            reactionComplete: false,
+          };
+        }
+
+        return c;
+      });
+    });
+  }, [atmosphericTemp, onExperimentStep]);
+
   const handleBenchDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setBenchDragOver(false);
@@ -428,63 +526,11 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
       if (apparatus.id === "connecting-tube") {
         if (connectingFrom === null) {
           setConnectingFrom(containerId);
-          setContainers((prev) =>
-            prev.map((c) =>
-              c.id === containerId
-                ? { ...c, attachedApparatuses: [...c.attachedApparatuses.filter((a) => a.id !== "connecting-tube"), apparatus] }
-                : c
-            )
-          );
         } else if (connectingFrom !== containerId) {
-          // Connect the two containers
-          setContainers((prev) => {
-            const fromContainer = prev.find((c) => c.id === connectingFrom);
-            const toContainer = prev.find((c) => c.id === containerId);
-            if (!fromContainer || !toContainer) return prev;
-
-            // Transfer liquids (filtered or not) + collected gases
-            const sourceHasFilter = fromContainer.attachedApparatuses.some((a) => a.id === "filter-paper" || a.id === "filter-funnel");
-            const transferChemicals = sourceHasFilter
-              ? fromContainer.chemicals.filter((c) => isChemicalSoluble(c))
-              : [...fromContainer.chemicals];
-            // Also transfer collected gases from source
-            const gasTransfers = fromContainer.collectedGases.map((g) => ({ ...g, state: "gas" as const }));
-            const allTransfers = [...transferChemicals, ...gasTransfers];
-            const transferIds = allTransfers.map((c) => c.id);
-            const mergedChemicals = [...toContainer.chemicals, ...allTransfers];
-
-            let reaction: Reaction | null = null;
-            let showEffect = false;
-            let solutionColor = toContainer.solutionColor;
-
-            if (mergedChemicals.length >= 2) {
-              for (let i = 0; i < mergedChemicals.length; i++) {
-                for (let j = i + 1; j < mergedChemicals.length; j++) {
-                  const found = findReaction(mergedChemicals[i].formula, mergedChemicals[j].formula);
-                  if (found) { reaction = found; showEffect = true; if (found.indicatorColor) solutionColor = found.indicatorColor; break; }
-                }
-                if (reaction) break;
-              }
-            }
-
-            const pH = calculatePH(mergedChemicals);
-            const newApparatuses = [...toContainer.attachedApparatuses.filter((a) => a.id !== "connecting-tube"), apparatus];
-            const temp = calculateTemperature(atmosphericTemp, newApparatuses, reaction, toContainer.burnerTemperature, mergedChemicals);
-            const phaseChanges = calculatePhaseChanges(mergedChemicals, newApparatuses, toContainer.burnerTemperature);
-            const filterSeparation = calculateFilterSeparation(mergedChemicals, newApparatuses);
-
-            if (reaction) {
-              setActiveReaction(reaction);
-              onExperimentStep?.({ timestamp: new Date(), beakerLabel: toContainer.label, chemicals: mergedChemicals, reaction, apparatus: newApparatuses.map((a) => a.name) });
-            }
-
-            return prev.map((c) => {
-              if (c.id === connectingFrom) return { ...c, connectedTo: containerId };
-              if (c.id === containerId) return { ...c, chemicals: mergedChemicals, connectedTo: connectingFrom, attachedApparatuses: newApparatuses, reaction, showEffect, pH, temperature: temp, solutionColor, phaseChanges, filterSeparation, transferredChemicalIds: transferIds, isTransferTarget: true };
-              return c;
-            });
-          });
+          transferContainerContents(connectingFrom, containerId);
           setConnectingFrom(null);
+          onItemPlaced?.();
+          return;
         }
         return;
       }
@@ -536,12 +582,10 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
         let showEffect = false;
         let solutionColor = c.solutionColor;
 
-        if (newChemicals.length >= 2) {
-          const last = newChemicals[newChemicals.length - 1];
-          for (let i = 0; i < newChemicals.length - 1; i++) {
-            const found = findReaction(newChemicals[i].formula, last.formula);
-            if (found) { reaction = found; showEffect = true; if (found.indicatorColor) solutionColor = found.indicatorColor; break; }
-          }
+        reaction = findContainerReaction(newChemicals);
+        if (reaction) {
+          showEffect = true;
+          if (reaction.indicatorColor) solutionColor = reaction.indicatorColor;
         }
         
         // Check for heat-based reactions if no reaction found and burner is attached
@@ -568,7 +612,7 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
         return { ...c, chemicals: newChemicals, reaction, showEffect, pH, temperature: temp, solutionColor, phaseChanges, filterSeparation, collectedGases: gases };
       })
     );
-  }, [onExperimentStep, connectingFrom]);
+  }, [onExperimentStep, connectingFrom, transferContainerContents, onItemPlaced]);
 
   const clearContainer = (containerId: string) => {
     setContainers((prev) => {
@@ -723,18 +767,21 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
       const apparatus = selectedItem.data;
       if (apparatus.category === "container") return;
 
+      if (apparatus.id === "connecting-tube") {
+        if (connectingFrom === null) {
+          setConnectingFrom(containerId);
+        } else if (connectingFrom !== containerId) {
+          transferContainerContents(connectingFrom, containerId);
+          setConnectingFrom(null);
+          onItemPlaced?.();
+        }
+        return;
+      }
+
       // Reuse connecting tube logic
       if (apparatus.id === "connecting-tube") {
         if (connectingFrom === null) {
           setConnectingFrom(containerId);
-          setContainers((prev) =>
-            prev.map((c) =>
-              c.id === containerId
-                ? { ...c, attachedApparatuses: [...c.attachedApparatuses.filter((a) => a.id !== "connecting-tube"), apparatus] }
-                : c
-            )
-          );
-          onItemPlaced?.();
         } else if (connectingFrom !== containerId) {
           // Create a fake drag event isn't needed—just replicate the logic
           setContainers((prev) => {
@@ -752,14 +799,10 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
             let reaction: Reaction | null = null;
             let showEffect = false;
             let solutionColor = toContainer.solutionColor;
-            if (mergedChemicals.length >= 2) {
-              for (let i = 0; i < mergedChemicals.length; i++) {
-                for (let j = i + 1; j < mergedChemicals.length; j++) {
-                  const found = findReaction(mergedChemicals[i].formula, mergedChemicals[j].formula);
-                  if (found) { reaction = found; showEffect = true; if (found.indicatorColor) solutionColor = found.indicatorColor; break; }
-                }
-                if (reaction) break;
-              }
+            reaction = findContainerReaction(mergedChemicals);
+            if (reaction) {
+              showEffect = true;
+              if (reaction.indicatorColor) solutionColor = reaction.indicatorColor;
             }
             const pH = calculatePH(mergedChemicals);
             const newApparatuses = [...toContainer.attachedApparatuses.filter((a) => a.id !== "connecting-tube"), apparatus];
@@ -806,12 +849,10 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
         let reaction: Reaction | null = null;
         let showEffect = false;
         let solutionColor = c.solutionColor;
-        if (newChemicals.length >= 2) {
-          const last = newChemicals[newChemicals.length - 1];
-          for (let i = 0; i < newChemicals.length - 1; i++) {
-            const found = findReaction(newChemicals[i].formula, last.formula);
-            if (found) { reaction = found; showEffect = true; if (found.indicatorColor) solutionColor = found.indicatorColor; break; }
-          }
+        reaction = findContainerReaction(newChemicals);
+        if (reaction) {
+          showEffect = true;
+          if (reaction.indicatorColor) solutionColor = reaction.indicatorColor;
         }
         const pH = calculatePH(newChemicals);
         const temp = calculateTemperature(atmosphericTemp, c.attachedApparatuses, reaction, c.burnerTemperature, newChemicals);
@@ -827,7 +868,7 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
       })
     );
     onItemPlaced?.();
-  }, [selectedItem, connectingFrom, onExperimentStep, onItemPlaced]);
+  }, [selectedItem, connectingFrom, onExperimentStep, onItemPlaced, transferContainerContents]);
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -837,7 +878,7 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
           Fusion Desk
         </h2>
         <div className="flex items-center gap-3">
-          {connectingFrom && (
+          {false && connectingFrom && (
             <span className="text-[10px] text-primary animate-pulse font-medium">
               🔗 Drop tube on second container to connect…
             </span>
@@ -957,7 +998,7 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
                 rendered.add(container.id);
                 elements.push(
                   <div key={container.id} className="relative">
-                    {connectingFrom === container.id && (
+                    {false && connectingFrom === container.id && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[9px] text-primary font-mono bg-primary/10 rounded px-1.5 py-0.5 z-20 animate-pulse">
                         🔗 Select second container…
                       </div>

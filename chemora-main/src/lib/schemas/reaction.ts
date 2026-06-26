@@ -22,7 +22,7 @@ export type ReactionEffect =
   | "bright-white";
 
 export interface Reaction {
-  reactants: [string, string];
+  reactants: string[];
   products: string;
   equation: string;
   effect: ReactionEffect;

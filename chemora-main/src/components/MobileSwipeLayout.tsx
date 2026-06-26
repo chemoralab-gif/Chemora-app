@@ -61,6 +61,7 @@ export default function MobileSwipeLayout({
   const [panelPosition, setPanelPosition] = useState(0); // -1: left, 0: center, 1: right
   const [showHint, setShowHint] = useState(true);
   const [hintStage, setHintStage] = useState(0); // 0: chemicals, 1: desk, 2: thermal, 3: desk
+  const [hasTransferSource, setHasTransferSource] = useState(false);
 
   const finishSwipeHints = () => {
     setShowHint(false);
@@ -104,6 +105,15 @@ export default function MobileSwipeLayout({
     }
   };
 
+  const selectedItemInstruction =
+    selectedItem?.type === "apparatus" && selectedItem.data.id === "connecting-tube"
+      ? hasTransferSource
+        ? "- Select the container to put the chemicals/elements in"
+        : "- Place it into the container to be transfered"
+      : selectedItem?.type === "apparatus" && selectedItem.data.category === "container"
+      ? "Place it on the Fusion Desk"
+      : "- Drop it into or place it on the container";
+
   return (
     <div className="flex flex-1 overflow-hidden relative bg-background">
       {/* Left Panel - Chemicals */}
@@ -141,11 +151,14 @@ export default function MobileSwipeLayout({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold">{selectedItem.data.name}</p>
                 <p className="truncate text-[10px] text-muted-foreground">
-                  Tap the desk to place a container, or tap a container to add it.
+                  {selectedItemInstruction}
                 </p>
               </div>
               <button
-                onClick={() => onSelect(null)}
+                onClick={() => {
+                  onSelect(null);
+                  setHasTransferSource(false);
+                }}
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-primary/25 text-primary hover:bg-primary/10"
                 title="Deselect"
               >
@@ -158,6 +171,7 @@ export default function MobileSwipeLayout({
             onMaterialsRemoved={onMaterialsRemoved}
             selectedItem={selectedItem}
             onItemPlaced={onItemPlaced}
+            onTransferSourceChange={setHasTransferSource}
             onMetalChange={onMetalChange}
             onWaterTempChange={onWaterTempChange}
             atmosphericTemp={atmosphericTemp}

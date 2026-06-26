@@ -23,7 +23,7 @@ interface ContainerSlotProps {
 const CONTAINER_SHAPES: Record<string, string> = {
   beaker: "rounded-b-2xl rounded-t-sm",
   "test-tube": "rounded-b-full rounded-t-sm",
-  "conical-flask": "rounded-b-xl rounded-t-none [clip-path:polygon(30%_0%,70%_0%,100%_100%,0%_100%)]",
+  "conical-flask": "",
   "round-flask": "rounded-b-full rounded-t-lg",
 };
 
@@ -84,11 +84,25 @@ function getPHColor(pH: number): string {
   return "hsl(280, 60%, 40%)";
 }
 
+function getConicalLiquidPath(fillPercent: number): string {
+  const bodyTopY = 56;
+  const bodyBottomY = 186;
+  const y = bodyBottomY - ((bodyBottomY - bodyTopY) * fillPercent) / 100;
+  const progress = Math.max(0, Math.min(1, (y - bodyTopY) / (bodyBottomY - bodyTopY)));
+  const left = 52 - 46 * progress;
+  const right = 108 + 46 * progress;
+
+  return `M${left} ${y}H${right}L154 ${bodyBottomY}Q156 190 151 190H9Q4 190 6 ${bodyBottomY}Z`;
+}
+
 export default function ContainerSlot({
   container, isOver, hasSelectedItem, onDragOver, onDragLeave, onDrop, onClick, onClear, onRemove, onBurnerTempChange, onCoolingTargetChange,
 }: ContainerSlotProps) {
   const shape = getContainerShape(container.apparatus.id);
   const size = getContainerSize(container.apparatus.id);
+  const isConicalFlask = container.apparatus.id === "conical-flask";
+  const liquidFillPercent = Math.min(container.chemicals.length * 25, 80);
+  const liquidColor = getMixedColor(container.chemicals, container.solutionColor);
   const hasBurner = container.attachedApparatuses.some((a) => a.id === "bunsen-burner");
   const hasThermometer = container.attachedApparatuses.some((a) => a.id === "thermometer");
   const hasPHMeter = container.attachedApparatuses.some((a) => a.id === "ph-meter");
@@ -218,18 +232,49 @@ export default function ContainerSlot({
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); onDragOver(); }}
         onDragLeave={(e) => { e.stopPropagation(); onDragLeave(); }}
         onDrop={onDrop}
-        className={`relative ${size} border-2 transition-all duration-300 flex flex-col items-center justify-end overflow-hidden ${shape} ${
+        className={`relative ${size} transition-all duration-300 flex flex-col items-center justify-end ${
+          isConicalFlask ? "overflow-visible" : `overflow-hidden border-2 ${shape}`
+        } ${
           isOver ? "border-primary glow-primary scale-105" : hasSelectedItem ? "border-primary/40 hover:border-primary hover:scale-[1.02] cursor-pointer" : "border-border hover:border-muted-foreground/30"
         }`}
-        style={{ background: "hsl(220, 18%, 10%)" }}
+        style={isConicalFlask ? undefined : { background: "hsl(220, 18%, 10%)" }}
       >
+        {isConicalFlask && (
+          <svg
+            className="absolute inset-0 pointer-events-none overflow-visible"
+            viewBox="0 0 160 192"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M55 4H105V44C105 50 108 55 111 61L154 186Q156 190 151 190H9Q4 190 6 186L49 61C52 55 55 50 55 44Z"
+              fill="hsl(220, 18%, 10%)"
+            />
+            {container.chemicals.length > 0 && (
+              <path
+                d={getConicalLiquidPath(liquidFillPercent)}
+                fill={liquidColor}
+                opacity={hasPhaseChanges && container.phaseChanges.some((pc) => pc.to === "gas") ? 0.3 : 0.6}
+              />
+            )}
+            <path
+              d="M55 4H105V44C105 50 108 55 111 61L154 186Q156 190 151 190H9Q4 190 6 186L49 61C52 55 55 50 55 44Z"
+              fill="none"
+              stroke={isOver ? "hsl(var(--primary))" : hasSelectedItem ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}
+              strokeWidth="2"
+              vectorEffect="non-scaling-stroke"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+
         {/* Liquid fill */}
-        {container.chemicals.length > 0 && (
+        {!isConicalFlask && container.chemicals.length > 0 && (
           <div
             className="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out"
             style={{
-              height: `${Math.min(container.chemicals.length * 25, 80)}%`,
-              backgroundColor: getMixedColor(container.chemicals, container.solutionColor),
+              height: `${liquidFillPercent}%`,
+              backgroundColor: liquidColor,
               opacity: hasPhaseChanges && container.phaseChanges.some((pc) => pc.to === "gas") ? 0.3 : 0.6,
             }}
           />
@@ -254,7 +299,7 @@ export default function ContainerSlot({
 
         {/* During active reaction - show reactants */}
         {container.showEffect && container.reaction && !container.reactionComplete && container.chemicals.length > 0 && (
-          <div className="relative z-10 p-2 w-full flex flex-col items-center gap-1">
+          <div className={`relative z-10 w-full flex flex-col items-center gap-1 ${isConicalFlask ? "px-5 pb-4 pt-12" : "p-2"}`}>
             <div className="flex flex-col items-center gap-0.5 w-full">
               {container.chemicals.map((c, i) => (
                 <ChemicalChip key={i} chemical={c} />
@@ -266,7 +311,7 @@ export default function ContainerSlot({
 
         {/* Chemical chips - show when no active reaction */}
         {(!container.showEffect || !container.reaction) && (
-          <div className="relative z-10 p-2 w-full flex flex-col items-center gap-0.5">
+          <div className={`relative z-10 w-full flex flex-col items-center gap-0.5 ${isConicalFlask ? "px-5 pb-4 pt-12" : "p-2"}`}>
             {container.chemicals.map((c, i) => (
               <ChemicalChip key={i} chemical={c} />
             ))}
@@ -275,7 +320,7 @@ export default function ContainerSlot({
 
         {/* Attached apparatus badges */}
         {container.attachedApparatuses.length > 0 && (
-          <div className="absolute top-1 left-1 right-1 flex flex-wrap gap-0.5 z-10">
+          <div className={`absolute left-1 right-1 flex flex-wrap gap-0.5 z-20 ${isConicalFlask ? "-top-1 justify-center" : "top-1"}`}>
             {container.attachedApparatuses.map((a) => (
               <ApparatusTooltip key={a.id} apparatus={a} />
             ))}
@@ -284,7 +329,7 @@ export default function ContainerSlot({
 
         {/* Drop hint */}
         {container.chemicals.length === 0 && container.attachedApparatuses.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className={`absolute inset-0 flex items-center justify-center ${isConicalFlask ? "z-10 pt-6" : ""}`}>
             <span className="text-xs text-muted-foreground/40">Drop here</span>
           </div>
         )}

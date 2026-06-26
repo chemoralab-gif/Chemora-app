@@ -1,25 +1,26 @@
 import { Reaction } from "@/lib/schemas/reaction";
 
-import { EXOTHERMIC_REACTIONS } from "./exothermic";
-import { ENDOTHERMIC_REACTIONS } from "./endothermic";
 import {
-  INDICATOR_REACTIONS,
-  INDICATOR_EXOTHERMIC_REACTIONS,
+  ALL_REACTIONS as BINARY_REACTIONS,
+  ENDOTHERMIC_REACTIONS,
+  EXOTHERMIC_REACTIONS,
   INDICATOR_ENDOTHERMIC_REACTIONS,
-} from "./indicator";
-
-// ════════════════════════════════════════════════════════════════════════════════════════
-// COMPREHENSIVE REACTIONS LIBRARY
-// # EXOTHERMIC_REACTIONS
-// # ENDOTHERMIC_REACTIONS
-// # INDICATOR_REACTIONS
-// ════════════════════════════════════════════════════════════════════════════════════════
+  INDICATOR_EXOTHERMIC_REACTIONS,
+  INDICATOR_REACTIONS,
+  REACTION_STATISTICS as BINARY_REACTION_STATISTICS,
+} from "./binary";
+import {
+  ENDOTHERMIC_THREE_REACTANT_NORMALIZED_REACTIONS,
+  TRI_REACTIONS,
+} from "./tri";
 
 export const ALL_REACTIONS: Reaction[] = [
-  ...EXOTHERMIC_REACTIONS,
-  ...ENDOTHERMIC_REACTIONS,
-  ...INDICATOR_REACTIONS,
+  ...BINARY_REACTIONS,
+  ...TRI_REACTIONS,
 ];
+
+export const HANDCRAFTED_REACTIONS = ALL_REACTIONS;
+export const SPECIALIZED_REACTIONS = TRI_REACTIONS;
 
 export {
   EXOTHERMIC_REACTIONS,
@@ -27,13 +28,12 @@ export {
   INDICATOR_REACTIONS,
   INDICATOR_EXOTHERMIC_REACTIONS,
   INDICATOR_ENDOTHERMIC_REACTIONS,
+  ENDOTHERMIC_THREE_REACTANT_NORMALIZED_REACTIONS,
+  TRI_REACTIONS,
 };
 
 export const REACTION_STATISTICS = {
-  exothermic: EXOTHERMIC_REACTIONS.length,
-  endothermic: ENDOTHERMIC_REACTIONS.length,
-  indicator: INDICATOR_REACTIONS.length,
-  indicatorExothermic: INDICATOR_EXOTHERMIC_REACTIONS.length,
-  indicatorEndothermic: INDICATOR_ENDOTHERMIC_REACTIONS.length,
+  ...BINARY_REACTION_STATISTICS,
+  tri: TRI_REACTIONS.length,
   total: ALL_REACTIONS.length,
 };

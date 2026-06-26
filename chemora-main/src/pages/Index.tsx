@@ -41,6 +41,7 @@ const Index = () => {
   const [showReport, setShowReport] = useState(false);
   const [showChemistryAI, setShowChemistryAI] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
+  const [hasTransferSource, setHasTransferSource] = useState(false);
   const [showTutorial, setShowTutorial] = useState(true);
   const [activeMetal, setActiveMetal] = useState<string | null>(null);
   const [containerWaterTemp, setContainerWaterTemp] = useState(25);
@@ -76,6 +77,15 @@ const Index = () => {
     setUnreadReportCount(0);
   }, []);
 
+  const selectedItemInstruction =
+    selectedItem?.type === "apparatus" && selectedItem.data.id === "connecting-tube"
+      ? hasTransferSource
+        ? "- Select the container to put the chemicals/elements in"
+        : "- Place it into the container to be transfered"
+      : selectedItem?.type === "apparatus" && selectedItem.data.category === "container"
+      ? "Place it on the Fusion Desk"
+      : "- Drop it into or place it on the container";
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header */}
@@ -99,7 +109,10 @@ const Index = () => {
             </button>
             {selectedItem && (
               <button
-                onClick={() => setSelectedItem(null)}
+                onClick={() => {
+                  setSelectedItem(null);
+                  setHasTransferSource(false);
+                }}
                 className="flex items-center gap-1 text-[10px] font-medium text-destructive hover:text-destructive/80 transition-colors px-2 py-1 rounded border border-destructive/30 bg-destructive/5"
               >
                 ✕ Deselect
@@ -168,7 +181,7 @@ const Index = () => {
           <span>
             {selectedItem.data.name} selected
           </span>
-          <span className="text-muted-foreground">— tap a container or the desk to place it</span>
+          <span className="text-muted-foreground">{selectedItemInstruction}</span>
         </div>
       )}
 
@@ -187,6 +200,7 @@ const Index = () => {
               onMaterialsRemoved={handleMaterialsRemoved}
               selectedItem={selectedItem}
               onItemPlaced={() => setSelectedItem(null)}
+              onTransferSourceChange={setHasTransferSource}
               onMetalChange={setActiveMetal}
               onWaterTempChange={setContainerWaterTemp}
               atmosphericTemp={atmosphericTemp}

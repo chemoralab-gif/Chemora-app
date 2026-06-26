@@ -4,7 +4,7 @@ from pathlib import Path
 DATA_DIR = Path(__file__).resolve().parents[2] / 'Data'
 EX_DIR = DATA_DIR / 'extracted_texts'
 PARSED = EX_DIR / 'parsed_reactions.json'
-REACTIONS_DIR = Path(__file__).resolve().parents[1] / 'src' / 'lib' / 'data' / 'reactions'
+REACTIONS_DIR = Path(__file__).resolve().parents[1] / 'src' / 'lib' / 'data' / 'reactions' / 'binary'
 OUT = REACTIONS_DIR / 'imported.ts'
 
 if not PARSED.exists():

@@ -86,20 +86,56 @@ export const APPARATUS_CATEGORIES: Record<string, string> = {
 };
 
 // ──── HELPER FUNCTIONS ────
+function normalizeReactionKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function chemicalKeys(chemical: Chemical): Set<string> {
+  return new Set([
+    normalizeReactionKey(chemical.formula),
+    normalizeReactionKey(chemical.name),
+    normalizeReactionKey(chemical.id),
+  ]);
+}
+
+function reactionMatchesChemicals(reaction: Reaction, chemicals: Chemical[]): boolean {
+  if (reaction.reactants.length > chemicals.length) return false;
+
+  const availableKeys = chemicals.map(chemicalKeys);
+  const usedChemicalIndexes = new Set<number>();
+
+  return reaction.reactants.every((reactant) => {
+    const key = normalizeReactionKey(reactant);
+    const matchIndex = availableKeys.findIndex((keys, index) => !usedChemicalIndexes.has(index) && keys.has(key));
+
+    if (matchIndex === -1) return false;
+    usedChemicalIndexes.add(matchIndex);
+    return true;
+  });
+}
+
 export function findReaction(formula1: string, formula2: string): Reaction | null {
   return REACTIONS.find(
     (r) =>
-      (r.reactants[0] === formula1 && r.reactants[1] === formula2) ||
-      (r.reactants[0] === formula2 && r.reactants[1] === formula1)
+      r.reactants.length === 2 &&
+      ((r.reactants[0] === formula1 && r.reactants[1] === formula2) ||
+        (r.reactants[0] === formula2 && r.reactants[1] === formula1))
   ) || null;
+}
+
+export function findReactionForChemicals(chemicals: Chemical[]): Reaction | null {
+  return REACTIONS
+    .filter((reaction) => reactionMatchesChemicals(reaction, chemicals))
+    .sort((a, b) => b.reactants.length - a.reactants.length)[0] ?? null;
 }
 
 // Find reactions where heat is a reactant (for thermal decomposition, etc.)
 export function findReactionWithHeat(formula: string): Reaction | null {
   return REACTIONS.find(
     (r) =>
-      (r.reactants[0] === formula && r.reactants[1] === "Heat") ||
-      (r.reactants[0] === "Heat" && r.reactants[1] === formula)
+      r.reactants.length === 2 &&
+      ((r.reactants[0] === formula && r.reactants[1] === "Heat") ||
+        (r.reactants[0] === "Heat" && r.reactants[1] === formula))
   ) || null;
 }
 
