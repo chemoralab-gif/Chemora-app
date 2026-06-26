@@ -1,4 +1,4 @@
-import { useState, useCallback, lazy, Suspense } from "react";
+import { useState, useCallback, lazy, Suspense, useEffect, useRef } from "react";
 import ChemicalPalette from "@/components/ChemicalPalette";
 import type { CalorimetryData } from "@/components/types/thermal";
 import type { Chemical, Apparatus, ExperimentStep } from "@/lib/reactions";
@@ -37,6 +37,7 @@ const Index = () => {
   const [experimentSteps, setExperimentSteps] = useState<ExperimentStep[]>([]);
   const [hiddenReportMaterialIds, setHiddenReportMaterialIds] = useState<string[]>([]);
   const [deskRemovedMaterialIds, setDeskRemovedMaterialIds] = useState<string[]>([]);
+  const [pendingReportMaterialRemoval, setPendingReportMaterialRemoval] = useState<{ id: string; label: string } | null>(null);
   const [unreadReportCount, setUnreadReportCount] = useState(0);
   const [showReport, setShowReport] = useState(false);
   const [showChemistryAI, setShowChemistryAI] = useState(false);
@@ -50,6 +51,7 @@ const Index = () => {
   const [pressure, setPressure] = useState(101.325);
   const [currentReactionTemp, setCurrentReactionTemp] = useState<number | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const reportRemovalTimeoutRef = useRef<number | null>(null);
 
   const handleExperimentStep = useCallback((step: ExperimentStep) => {
     setExperimentSteps((prev) => [...prev, step]);
@@ -60,6 +62,7 @@ const Index = () => {
     setExperimentSteps([]);
     setHiddenReportMaterialIds([]);
     setDeskRemovedMaterialIds([]);
+    setPendingReportMaterialRemoval(null);
     setUnreadReportCount(0);
   }, []);
 
@@ -67,10 +70,55 @@ const Index = () => {
     setHiddenReportMaterialIds((current) => [...current, materialId]);
   }, []);
 
+  const commitPendingReportMaterialRemoval = useCallback(() => {
+    setPendingReportMaterialRemoval((pending) => {
+      if (pending) setHiddenReportMaterialIds((current) => [...current, pending.id]);
+      return null;
+    });
+    if (reportRemovalTimeoutRef.current !== null) {
+      window.clearTimeout(reportRemovalTimeoutRef.current);
+      reportRemovalTimeoutRef.current = null;
+    }
+  }, []);
+
+  const undoPendingReportMaterialRemoval = useCallback(() => {
+    setPendingReportMaterialRemoval(null);
+    if (reportRemovalTimeoutRef.current !== null) {
+      window.clearTimeout(reportRemovalTimeoutRef.current);
+      reportRemovalTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleRequestHideReportMaterial = useCallback((materialId: string, label: string) => {
+    setPendingReportMaterialRemoval({ id: materialId, label });
+  }, []);
+
+  useEffect(() => {
+    if (!pendingReportMaterialRemoval) return;
+    if (reportRemovalTimeoutRef.current !== null) window.clearTimeout(reportRemovalTimeoutRef.current);
+    reportRemovalTimeoutRef.current = window.setTimeout(() => {
+      commitPendingReportMaterialRemoval();
+    }, 5000);
+
+    return () => {
+      if (reportRemovalTimeoutRef.current !== null) {
+        window.clearTimeout(reportRemovalTimeoutRef.current);
+        reportRemovalTimeoutRef.current = null;
+      }
+    };
+  }, [commitPendingReportMaterialRemoval, pendingReportMaterialRemoval]);
+
   const handleMaterialsRemoved = useCallback((materialIds: string[]) => {
     setDeskRemovedMaterialIds((current) => [...current, ...materialIds]);
-    if (!showReport) setUnreadReportCount((current) => current + materialIds.length);
-  }, [showReport]);
+  }, []);
+
+  const handleDeskCleared = useCallback(() => {
+    setExperimentSteps([]);
+    setHiddenReportMaterialIds([]);
+    setDeskRemovedMaterialIds([]);
+    setCalorimetryData(null);
+    setUnreadReportCount(0);
+  }, []);
 
   const handleOpenReport = useCallback(() => {
     setShowReport(true);
@@ -198,6 +246,7 @@ const Index = () => {
             <DesktopEquipmentArea
               onExperimentStep={handleExperimentStep}
               onMaterialsRemoved={handleMaterialsRemoved}
+              onDeskCleared={handleDeskCleared}
               selectedItem={selectedItem}
               onItemPlaced={() => setSelectedItem(null)}
               onTransferSourceChange={setHasTransferSource}
@@ -233,6 +282,7 @@ const Index = () => {
             onSelect={setSelectedItem}
             onExperimentStep={handleExperimentStep}
             onMaterialsRemoved={handleMaterialsRemoved}
+            onDeskCleared={handleDeskCleared}
             onItemPlaced={() => setSelectedItem(null)}
             onMetalChange={setActiveMetal}
             onWaterTempChange={setContainerWaterTemp}
@@ -260,10 +310,34 @@ const Index = () => {
             hiddenMaterialIds={hiddenReportMaterialIds}
             deskRemovedMaterialIds={deskRemovedMaterialIds}
             onHideMaterial={handleHideReportMaterial}
+            onRequestHideMaterial={handleRequestHideReportMaterial}
             onClose={() => setShowReport(false)}
             onClear={handleClearReport}
           />
         </Suspense>
+      )}
+
+      {pendingReportMaterialRemoval && (
+        <div className="fixed bottom-4 right-4 z-[70] max-w-sm rounded-lg border border-border bg-card/80 p-4 text-sm text-foreground shadow-2xl backdrop-blur-md">
+          <p className="font-medium">{pendingReportMaterialRemoval.label} removed from Materials Used.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            It will stay on the Fusion Desk. This only removes it from the report.
+          </p>
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              onClick={undoPendingReportMaterialRemoval}
+              className="rounded-md border border-primary/30 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+            >
+              Undo
+            </button>
+            <button
+              onClick={commitPendingReportMaterialRemoval}
+              className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-secondary"
+            >
+              OK
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Chemistry AI assistant */}

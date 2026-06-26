@@ -16,6 +16,7 @@ interface MobileSwipeLayoutProps {
   onSelect: (item: SelectedItem) => void;
   onExperimentStep: (step: ExperimentStep) => void;
   onMaterialsRemoved: (materialIds: string[]) => void;
+  onDeskCleared: () => void;
   onItemPlaced: () => void;
   onMetalChange: (metal: string | null) => void;
   onWaterTempChange: (temp: number) => void;
@@ -39,6 +40,7 @@ export default function MobileSwipeLayout({
   onSelect,
   onExperimentStep,
   onMaterialsRemoved,
+  onDeskCleared,
   onItemPlaced,
   onMetalChange,
   onWaterTempChange,
@@ -169,6 +171,7 @@ export default function MobileSwipeLayout({
           <EquipmentArea
             onExperimentStep={onExperimentStep}
             onMaterialsRemoved={onMaterialsRemoved}
+            onDeskCleared={onDeskCleared}
             selectedItem={selectedItem}
             onItemPlaced={onItemPlaced}
             onTransferSourceChange={setHasTransferSource}
@@ -184,25 +187,20 @@ export default function MobileSwipeLayout({
 
       {/* Right Panel - Thermal Analysis */}
       <div
-        className={`absolute inset-y-0 left-0 w-full z-20 transition-all duration-300 ease-out overflow-y-auto ${
+        className={`absolute inset-y-0 left-0 w-full z-20 transition-all duration-300 ease-out overflow-hidden ${
           panelPosition === 1 ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="min-h-full w-full bg-background">
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <h2 className="font-semibold text-foreground">Thermal Analysis</h2>
-          </div>
-          <div className="p-4">
-            <ThermalAnalysisPanel
-              activeMetal={activeMetal}
-              waterTemp={waterTemp}
-              currentReactionTemp={currentReactionTemp}
-              onCalorimetryData={onCalorimetryData}
-              onAtmosphericTempChange={onAtmosphericTempChange}
-              onPressureChange={onPressureChange}
-              isActive={isActive}
-            />
-          </div>
+        <div className="h-full w-full bg-background">
+          <ThermalAnalysisPanel
+            activeMetal={activeMetal}
+            waterTemp={waterTemp}
+            currentReactionTemp={currentReactionTemp}
+            onCalorimetryData={onCalorimetryData}
+            onAtmosphericTempChange={onAtmosphericTempChange}
+            onPressureChange={onPressureChange}
+            isActive={isActive}
+          />
         </div>
       </div>
 

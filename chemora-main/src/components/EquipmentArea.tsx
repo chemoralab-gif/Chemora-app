@@ -10,7 +10,7 @@ import {
 
 import ReactionInfo from "./ReactionInfo";
 import ContainerSlot from "./ContainerSlot";
-import { Beaker, Trash2, FlaskConical } from "lucide-react";
+import { ArrowLeft, Beaker, FlaskConical, MoveRight, Trash2 } from "lucide-react";
 import type { SelectedItem } from "@/pages/Index";
 
 export interface ContainerState {
@@ -51,6 +51,7 @@ export interface FilterSeparation {
 export interface EquipmentAreaProps {
   onExperimentStep?: (step: ExperimentStep) => void;
   onMaterialsRemoved?: (materialIds: string[]) => void;
+  onDeskCleared?: () => void;
   selectedItem?: SelectedItem;
   onItemPlaced?: () => void;
   onTransferSourceChange?: (hasSource: boolean) => void;
@@ -255,7 +256,7 @@ function getActiveMaterialIds(containers: ContainerState[]): Set<string> {
   return new Set(containers.flatMap(getContainerMaterialIds));
 }
 
-export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, selectedItem, onItemPlaced, onTransferSourceChange, onMetalChange, onWaterTempChange, atmosphericTemp = 25, pressure = 101.325, onReactionTempChange, onActiveChange }: EquipmentAreaProps) {
+export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, onDeskCleared, selectedItem, onItemPlaced, onTransferSourceChange, onMetalChange, onWaterTempChange, atmosphericTemp = 25, pressure = 101.325, onReactionTempChange, onActiveChange }: EquipmentAreaProps) {
   const [containers, setContainers] = useState<ContainerState[]>([]);
   const [activeReaction, setActiveReaction] = useState<Reaction | null>(null);
 
@@ -379,15 +380,89 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [benchDragOver, setBenchDragOver] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [transferPlannerOpen, setTransferPlannerOpen] = useState(false);
+  const [transferBeakerCount, setTransferBeakerCount] = useState("2");
+  const [plannedSourceIds, setPlannedSourceIds] = useState<string[]>([]);
+  const [plannedTargetId, setPlannedTargetId] = useState<string>("");
+  const [pendingDeskClear, setPendingDeskClear] = useState<{ containers: ContainerState[]; removedIds: string[] } | null>(null);
+  const deskClearTimeoutRef = useRef<number | null>(null);
+
+  const isConnectingTubeSelected = selectedItem?.type === "apparatus" && selectedItem.data.id === "connecting-tube";
+  const plannedTotalCount = Math.min(Math.max(Number.parseInt(transferBeakerCount, 10) || 2, 2), Math.max(containers.length, 2));
+  const plannedSourceCount = Math.max(plannedTotalCount - 1, 1);
+  const plannedTarget = containers.find((container) => container.id === plannedTargetId);
 
   useEffect(() => {
     onTransferSourceChange?.(!!connectingFrom);
   }, [connectingFrom, onTransferSourceChange]);
 
   useEffect(() => {
-    if (selectedItem?.type === "apparatus" && selectedItem.data.id === "connecting-tube") return;
+    if (isConnectingTubeSelected) {
+      setTransferPlannerOpen(true);
+      setConnectingFrom(null);
+      return;
+    }
     setConnectingFrom(null);
-  }, [selectedItem]);
+    setTransferPlannerOpen(false);
+    setPlannedSourceIds([]);
+    setPlannedTargetId("");
+  }, [isConnectingTubeSelected]);
+
+  useEffect(() => {
+    setPlannedSourceIds((current) => current.length > plannedSourceCount ? current.slice(0, plannedSourceCount) : current);
+  }, [plannedSourceCount]);
+
+  useEffect(() => {
+    setPlannedTargetId((current) => plannedSourceIds.includes(current) ? "" : current);
+  }, [plannedSourceIds]);
+
+  const closeTransferPlanner = useCallback(() => {
+    setTransferPlannerOpen(false);
+    setConnectingFrom(null);
+    setPlannedSourceIds([]);
+    setPlannedTargetId("");
+    onItemPlaced?.();
+  }, [onItemPlaced]);
+
+  const commitPendingDeskClear = useCallback(() => {
+    setPendingDeskClear((pending) => {
+      if (pending?.removedIds.length) {
+        if (onDeskCleared) onDeskCleared();
+        else onMaterialsRemoved?.(pending.removedIds);
+      }
+      return null;
+    });
+    if (deskClearTimeoutRef.current !== null) {
+      window.clearTimeout(deskClearTimeoutRef.current);
+      deskClearTimeoutRef.current = null;
+    }
+  }, [onDeskCleared, onMaterialsRemoved]);
+
+  const undoPendingDeskClear = useCallback(() => {
+    setPendingDeskClear((pending) => {
+      if (pending) setContainers(pending.containers);
+      return null;
+    });
+    if (deskClearTimeoutRef.current !== null) {
+      window.clearTimeout(deskClearTimeoutRef.current);
+      deskClearTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingDeskClear) return;
+    if (deskClearTimeoutRef.current !== null) window.clearTimeout(deskClearTimeoutRef.current);
+    deskClearTimeoutRef.current = window.setTimeout(() => {
+      commitPendingDeskClear();
+    }, 5000);
+
+    return () => {
+      if (deskClearTimeoutRef.current !== null) {
+        window.clearTimeout(deskClearTimeoutRef.current);
+        deskClearTimeoutRef.current = null;
+      }
+    };
+  }, [commitPendingDeskClear, pendingDeskClear]);
 
   const transferContainerContents = useCallback((fromContainerId: string, toContainerId: string) => {
     if (fromContainerId === toContainerId) return;
@@ -472,6 +547,26 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
       });
     });
   }, [atmosphericTemp, onExperimentStep]);
+
+  const togglePlannedSource = useCallback((containerId: string) => {
+    setPlannedSourceIds((current) => {
+      if (current.includes(containerId)) return current.filter((id) => id !== containerId);
+      if (current.length >= plannedSourceCount) return current;
+      return [...current, containerId];
+    });
+    if (plannedTargetId === containerId) setPlannedTargetId("");
+  }, [plannedSourceCount, plannedTargetId]);
+
+  const executePlannedTransfer = useCallback(() => {
+    if (!plannedTargetId || plannedSourceIds.length !== plannedSourceCount) return;
+
+    plannedSourceIds.forEach((sourceId) => transferContainerContents(sourceId, plannedTargetId));
+    setTransferPlannerOpen(false);
+    setConnectingFrom(null);
+    setPlannedSourceIds([]);
+    setPlannedTargetId("");
+    onItemPlaced?.();
+  }, [onItemPlaced, plannedSourceCount, plannedSourceIds, plannedTargetId, transferContainerContents]);
 
   const handleBenchDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -650,7 +745,9 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
 
   const clearAll = () => {
     const removedIds = containers.flatMap(getContainerMaterialIds);
-    if (removedIds.length > 0) onMaterialsRemoved?.(removedIds);
+    if (removedIds.length > 0) {
+      setPendingDeskClear({ containers, removedIds });
+    }
     setContainers([]);
     setActiveReaction(null);
     setConnectingFrom(null);
@@ -871,8 +968,8 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
   }, [selectedItem, connectingFrom, onExperimentStep, onItemPlaced, transferContainerContents]);
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card/50">
+    <div className="flex-1 flex min-h-0 flex-col h-full">
+      <div className="flex shrink-0 items-center justify-between px-6 py-3 border-b border-border bg-card/50">
         <h2 className="text-sm font-semibold text-foreground tracking-wide uppercase flex items-center gap-2">
           <Beaker className="w-4 h-4 text-primary" />
           Fusion Desk
@@ -896,7 +993,7 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
         onDragOver={(e) => { e.preventDefault(); setBenchDragOver(true); }}
         onDragLeave={() => setBenchDragOver(false)}
         onDrop={handleBenchDrop}
-        className={`flex-1 flex items-center justify-center gap-8 p-6 flex-wrap overflow-y-auto transition-colors duration-200 cursor-pointer ${
+        className={`min-h-0 flex-1 flex items-center justify-center gap-8 p-6 flex-wrap overflow-auto [scrollbar-gutter:stable] transition-colors duration-200 cursor-pointer ${
           benchDragOver || (selectedItem?.type === "apparatus" && selectedItem.data.category === "container")
             ? "bg-primary/5 ring-2 ring-inset ring-primary/20 rounded-lg"
             : ""
@@ -1025,6 +1122,151 @@ export default function EquipmentArea({ onExperimentStep, onMaterialsRemoved, se
           })()
         )}
       </div>
+
+      {transferPlannerOpen && isConnectingTubeSelected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-3 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="flex h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-[2rem] border border-primary/25 bg-[linear-gradient(180deg,hsl(var(--card))_0%,hsl(var(--secondary))_48%,hsl(var(--background))_100%)] shadow-2xl shadow-primary/15">
+            <header className="flex items-center justify-between px-4 pb-3 pt-4">
+              <button
+                onClick={closeTransferPlanner}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-background/65 text-foreground transition-all hover:-translate-x-0.5 hover:bg-primary/15 hover:text-primary"
+                title="Back"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <div className="rounded-full border border-primary/20 bg-background/60 px-4 py-2 text-sm font-semibold text-primary shadow-lg shadow-primary/10">
+                Connecting Tube
+              </div>
+              <div className="h-10 w-10" />
+            </header>
+
+            <main className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
+              <section className="rounded-[1.4rem] rounded-bl-md bg-background/85 px-4 py-3 text-sm leading-6 text-foreground shadow-lg shadow-black/10">
+                <p className="font-semibold text-primary">Set up a multi-beaker transfer.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Type the total number of beakers in the mix. Chemora will use all except one as source beakers, then move their chemicals/elements into the final beaker.
+                </p>
+              </section>
+
+              <section className="rounded-[1.4rem] bg-background/75 p-4 shadow-lg shadow-black/10">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="transfer-beaker-count">
+                  Number of beakers
+                </label>
+                <input
+                  id="transfer-beaker-count"
+                  type="number"
+                  min={2}
+                  max={Math.max(containers.length, 2)}
+                  value={transferBeakerCount}
+                  onChange={(event) => setTransferBeakerCount(event.target.value)}
+                  className="mt-2 h-11 w-full rounded-full border border-primary/20 bg-background/85 px-4 text-sm font-semibold text-foreground outline-none transition-colors focus:border-primary"
+                />
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  For {plannedTotalCount} beaker{plannedTotalCount === 1 ? "" : "s"}: select {plannedSourceCount} source beaker{plannedSourceCount === 1 ? "" : "s"} and 1 end beaker.
+                </p>
+              </section>
+
+              <section className="space-y-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Source beakers</p>
+                  <p className="text-[11px] text-muted-foreground">Choose the beakers to empty into the final beaker.</p>
+                </div>
+                <div className="space-y-2">
+                  {containers.map((container) => {
+                    const selected = plannedSourceIds.includes(container.id);
+                    const disabled = !selected && plannedSourceIds.length >= plannedSourceCount;
+
+                    return (
+                      <button
+                        key={`source-${container.id}`}
+                        onClick={() => togglePlannedSource(container.id)}
+                        disabled={disabled}
+                        className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all ${
+                          selected
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-background/70 text-foreground hover:border-primary/40"
+                        } ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold">{container.label}</span>
+                          <span className="block text-[11px] text-muted-foreground">{container.chemicals.length} material{container.chemicals.length === 1 ? "" : "s"}</span>
+                        </span>
+                        <span className="text-xs font-mono">{selected ? "source" : "select"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">End beaker</p>
+                  <p className="text-[11px] text-muted-foreground">This beaker receives every selected source material.</p>
+                </div>
+                <div className="space-y-2">
+                  {containers.map((container) => {
+                    const isSource = plannedSourceIds.includes(container.id);
+                    const selected = plannedTargetId === container.id;
+
+                    return (
+                      <button
+                        key={`target-${container.id}`}
+                        onClick={() => !isSource && setPlannedTargetId(container.id)}
+                        disabled={isSource}
+                        className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all ${
+                          selected
+                            ? "border-accent bg-accent/15 text-accent"
+                            : "border-border bg-background/70 text-foreground hover:border-accent/40"
+                        } ${isSource ? "cursor-not-allowed opacity-45" : ""}`}
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold">{container.label}</span>
+                          <span className="block text-[11px] text-muted-foreground">{isSource ? "Already selected as source" : "Available as final beaker"}</span>
+                        </span>
+                        <span className="text-xs font-mono">{selected ? "end" : "select"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </main>
+
+            <footer className="px-4 pb-5 pt-3">
+              <button
+                onClick={executePlannedTransfer}
+                disabled={containers.length < 2 || plannedSourceIds.length !== plannedSourceCount || !plannedTargetId}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <MoveRight className="h-4 w-4" />
+                Transfer into {plannedTarget?.label ?? "end beaker"}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {pendingDeskClear && (
+        <div className="fixed bottom-4 right-4 z-[60] max-w-sm rounded-lg border border-border bg-card/80 p-4 text-sm text-foreground shadow-2xl backdrop-blur-md">
+          <p className="font-medium">Fusion Desk cleared.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Materials, observations, and report results from the desk will also be cleared from the report.
+          </p>
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              onClick={undoPendingDeskClear}
+              className="rounded-md border border-primary/30 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+            >
+              Undo
+            </button>
+            <button
+              onClick={commitPendingDeskClear}
+              className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-secondary"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Only show reaction info for actual reactions (not non-reactive substances) */}
       {activeReaction && activeReaction.intensity > 0 && <ReactionInfo reaction={activeReaction} onClose={() => setActiveReaction(null)} />}

@@ -10,6 +10,7 @@ interface ExperimentReportProps {
   hiddenMaterialIds: string[];
   deskRemovedMaterialIds: string[];
   onHideMaterial: (materialId: string) => void;
+  onRequestHideMaterial: (materialId: string, label: string) => void;
   onClose: () => void;
   onClear: () => void;
 }
@@ -158,8 +159,9 @@ function makeExportFilename(value: string, fallback: string, extension: "pdf"): 
   return filename.toLowerCase().endsWith(`.${extension}`) ? filename : `${filename}.${extension}`;
 }
 
-export default function ExperimentReport({ steps, calorimetryData, hiddenMaterialIds, deskRemovedMaterialIds, onHideMaterial, onClose, onClear }: ExperimentReportProps) {
+export default function ExperimentReport({ steps, calorimetryData, hiddenMaterialIds, deskRemovedMaterialIds, onHideMaterial, onRequestHideMaterial, onClose, onClear }: ExperimentReportProps) {
   const [aim, setAim] = useState(generateAim(steps));
+  const [reportTitle, setReportTitle] = useState("Chemistry Experiment Report");
   const [conclusion, setConclusion] = useState(generateConclusion(steps));
   const [editingAim, setEditingAim] = useState(false);
   const [editingConclusion, setEditingConclusion] = useState(false);
@@ -193,7 +195,7 @@ export default function ExperimentReport({ steps, calorimetryData, hiddenMateria
   }, [removedMaterial, onHideMaterial]);
 
   const handleRemoveMaterial = (material: ReportMaterial) => {
-    setRemovedMaterial(material);
+    onRequestHideMaterial(material.id, material.label);
   };
 
   const handleUndoRemoveMaterial = () => {
@@ -234,7 +236,7 @@ export default function ExperimentReport({ steps, calorimetryData, hiddenMateria
       // Title
       pdf.setFontSize(18);
       pdf.setFont("helvetica", "bold");
-      pdf.text("Chemistry Experiment Report", pageWidth / 2, y, { align: "center" });
+      pdf.text(sanitizeForPDF(reportTitle), pageWidth / 2, y, { align: "center" });
       y += 8;
 
       pdf.setFontSize(9);
@@ -458,7 +460,12 @@ export default function ExperimentReport({ steps, calorimetryData, hiddenMateria
         <div className="flex-1 overflow-y-auto p-6 space-y-6" ref={contentRef}>
           {/* Title */}
           <div className="text-center border-b border-border pb-4">
-            <h1 className="text-lg font-bold text-foreground">Chemistry Experiment Report</h1>
+            <input
+              value={reportTitle}
+              onChange={(event) => setReportTitle(event.target.value)}
+              className="mx-auto w-full max-w-md rounded-md border border-transparent bg-transparent px-2 py-1 text-center text-lg font-bold text-foreground outline-none transition-colors hover:border-border hover:bg-secondary/20 focus:border-primary focus:bg-secondary/30"
+              aria-label="Report heading"
+            />
             <p className="text-xs text-muted-foreground mt-1">
               Date: {new Date().toLocaleDateString()} | Reactions: {procedureSteps.length}
             </p>
@@ -642,7 +649,7 @@ export default function ExperimentReport({ steps, calorimetryData, hiddenMateria
           </section>
         </div>
       </div>
-      {removedMaterial && (
+      {false && removedMaterial && (
         <div className="fixed bottom-4 right-4 z-[60] max-w-sm rounded-lg border border-border bg-card/80 p-4 text-sm text-foreground shadow-2xl backdrop-blur-md">
           <p className="font-medium">{removedMaterial.label} removed from Materials Used.</p>
           <p className="mt-1 text-xs text-muted-foreground">

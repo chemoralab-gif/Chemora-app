@@ -69,11 +69,22 @@ const chartConfig = {
   temp: { label: "Temperature", color: "hsl(var(--primary))" },
 };
 
-const FIXED_TICK_WIDTH = 36;
+const FIXED_TICK_WIDTH = 70;
 const RECORD_INTERVAL_MS = RECORD_INTERVAL_SEC * 1000;
 
 function formatAxisNumber(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+function formatSignedTemp(value: number): string {
+  const rounded = formatThermalTemp(value);
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}°C`;
+}
+
+function formatJoules(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1000) return `${(value / 1000).toFixed(2)} kJ`;
+  return `${value.toFixed(1)} J`;
 }
 
 function buildTimeTicks(maxTime: number): number[] {
@@ -86,6 +97,14 @@ function buildTimeTicks(maxTime: number): number[] {
   }
   if (ticks[ticks.length - 1] !== end) ticks.push(end);
   return Array.from(new Set(ticks));
+}
+
+function buildTemperatureTicks(minTemp: number, maxTemp: number): number[] {
+  const start = Math.floor(minTemp / 50) * 50;
+  const end = Math.ceil(maxTemp / 50) * 50;
+  const ticks: number[] = [];
+  for (let temp = start; temp <= end; temp += 50) ticks.push(temp);
+  return ticks.length > 0 ? ticks : [0, 50];
 }
 
 function makeExportFilename(value: string, fallback: string, extension: "xlsx"): string {
@@ -172,9 +191,6 @@ export default function ThermalAnalysisPanel({
       if (prev === null && tempDiff > 0.5) {
         setDataPoints([{ time: 0, temp: formatThermalTemp(atmosphericTemp) }]);
         timeRef.current = 0;
-      } else if (prev !== null && Math.abs(currentReactionTemp - prev) > 1) {
-        setDataPoints([{ time: 0, temp: formatThermalTemp(atmosphericTemp) }]);
-        timeRef.current = 0;
       }
       lastTempRef.current = currentReactionTemp;
       prevReactionTempRef.current = currentReactionTemp;
@@ -254,21 +270,23 @@ export default function ThermalAnalysisPanel({
 
   const finalTime = displayData[displayData.length - 1]?.time ?? 0;
   const xTicks = buildTimeTicks(finalTime);
-  const graphWidth = Math.max(280, xTicks.length * FIXED_TICK_WIDTH);
+  const graphWidth = Math.max(360, xTicks.length * FIXED_TICK_WIDTH);
   const yMin = Math.min(...displayData.map((d) => d.temp), atmosphericTemp);
   const yMax = Math.max(...displayData.map((d) => d.temp), atmosphericTemp);
+  const yTicks = buildTemperatureTicks(yMin, yMax);
+  const yDomain: [number, number] = [yTicks[0], yTicks[yTicks.length - 1]];
   const slidersLocked = isActive;
 
   return (
-    <div className="w-80 border-l border-border bg-card/80 flex flex-col h-full overflow-y-auto">
-      <div className="px-4 py-3 border-b border-border">
+    <div className="w-full md:w-80 border-l border-border bg-card/80 flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="sticky top-0 z-20 shrink-0 px-4 py-3 border-b border-border bg-card/95 backdrop-blur-sm">
         <h2 className="text-sm font-semibold text-foreground tracking-wide uppercase flex items-center gap-2">
           <Thermometer className="w-4 h-4 text-primary" />
           Thermal Analysis
         </h2>
       </div>
 
-      <div className="flex-1 px-4 py-4 space-y-4">
+      <div className="min-h-0 flex-1 overflow-y-scroll px-4 py-4 space-y-4 [scrollbar-gutter:stable]">
         {metal && (
           <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Active Metal</p>
@@ -338,6 +356,47 @@ export default function ThermalAnalysisPanel({
             disabled={slidersLocked} className={slidersLocked ? "opacity-50" : ""} />
         </div>
 
+        {false && metal && tFinal !== null && (
+          <div className="rounded-md border border-border bg-muted/25 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Calorimetry Result</p>
+              <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                q lost ≈ q gained
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-md border border-primary/20 bg-background/55 p-2">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Final temp</p>
+                <p className="font-mono text-lg font-semibold text-primary">{tFinal.toFixed(1)}°C</p>
+              </div>
+              <div className="rounded-md border border-border bg-background/55 p-2">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Water rise</p>
+                <p className="font-mono text-lg font-semibold text-accent">{formatSignedTemp(tFinal - effectiveWaterTemp)}</p>
+              </div>
+              <div className="rounded-md border border-destructive/20 bg-background/55 p-2">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Metal loses</p>
+                <p className="font-mono text-sm font-semibold text-destructive">{formatJoules(qMetal)}</p>
+              </div>
+              <div className="rounded-md border border-primary/20 bg-background/55 p-2">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Liquid gains</p>
+                <p className="font-mono text-sm font-semibold text-primary">{formatJoules(qWater)}</p>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border/70 bg-background/50 p-2 space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Real-world formula</p>
+              <p className="font-mono text-[11px] leading-5 text-foreground">q = m c ΔT</p>
+              <p className="font-mono text-[11px] leading-5 text-foreground">
+                T<sub>eq</sub> = (m<sub>m</sub>c<sub>m</sub>T<sub>m</sub> + m<sub>w</sub>c<sub>w</sub>T<sub>w</sub>) / (m<sub>m</sub>c<sub>m</sub> + m<sub>w</sub>c<sub>w</sub>)
+              </p>
+              <p className="text-[10px] leading-5 text-muted-foreground">
+                Using c<sub>water</sub> = {C_WATER} J/(g·°C), {metal.name} c = {metal.specificHeat} J/(g·°C). Energy balance error: <span className="font-mono text-foreground">{formatJoules(energyBalanceError)}</span>.
+              </p>
+            </div>
+          </div>
+        )}
+
         {metal && tFinal !== null && (
           <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1.5">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Energy Transfer</p>
@@ -377,14 +436,44 @@ export default function ThermalAnalysisPanel({
             )}
           </div>
 
-          <div ref={graphScrollRef} className="h-44 overflow-x-auto overflow-y-hidden">
+          {false && <div className="grid grid-cols-4 gap-1.5">
+            {[
+              ["Now", `${latestTemp.toFixed(1)}°C`, "text-primary"],
+              ["Peak", `${peakTemp.toFixed(1)}°C`, "text-accent"],
+              ["Low", `${lowestTemp.toFixed(1)}°C`, "text-foreground"],
+              ["Δ env", formatSignedTemp(deltaFromAmbient), deltaFromAmbient >= 0 ? "text-primary" : "text-blue-400"],
+            ].map(([label, value, color]) => (
+              <div key={label} className="rounded-md border border-border bg-background/55 px-2 py-1.5">
+                <p className="text-[8px] uppercase tracking-wider text-muted-foreground">{label}</p>
+                <p className={`font-mono text-[11px] font-semibold ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>}
+
+          <div className="grid h-44 grid-cols-[2.75rem_minmax(0,1fr)] gap-1">
+            <div className="h-full overflow-hidden rounded border border-border bg-background/35">
+              <ChartContainer config={chartConfig} className="h-full w-full">
+                <LineChart data={[{ time: 0, temp: yDomain[0] }, { time: 1, temp: yDomain[1] }]} margin={{ top: 12, right: 0, left: 0, bottom: 2 }}>
+                  <XAxis hide dataKey="time" />
+                  <YAxis
+                    tick={{ fontSize: 9 }}
+                    domain={yDomain}
+                    ticks={yTicks}
+                    tickFormatter={(value) => `${Math.round(Number(value))}`}
+                    width={40}
+                    label={{ value: "Â°C", position: "insideTopLeft", fontSize: 9 }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </div>
+            <div ref={graphScrollRef} className="h-full min-w-0 overflow-x-scroll overflow-y-hidden [scrollbar-gutter:stable]">
             {dataPoints.length === 0 ? (
               <div className="h-full flex items-center justify-center border border-dashed border-border rounded">
                 <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart data={[{ time: 0, temp: atmosphericTemp }, { time: 60, temp: atmosphericTemp }]}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                  <LineChart data={[{ time: 0, temp: atmosphericTemp }, { time: 60, temp: atmosphericTemp }]} margin={{ top: 12, right: 10, left: 0, bottom: 2 }}>
+                    <CartesianGrid strokeDasharray="4 4" className="stroke-border/35" />
                     <XAxis dataKey="time" tick={{ fontSize: 9 }} label={{ value: "Time (s)", position: "bottom", fontSize: 9, offset: -5 }} />
-                    <YAxis tick={{ fontSize: 9 }} domain={[Math.max(0, atmosphericTemp - 20), atmosphericTemp + 40]}
+                    <YAxis hide domain={yDomain} ticks={yTicks}
                       label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }} />
                     <ReferenceLine y={atmosphericTemp} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5"
                       label={{ value: `Tenv ${atmosphericTemp}°C`, fontSize: 8, fill: "hsl(var(--muted-foreground))" }} />
@@ -394,15 +483,16 @@ export default function ThermalAnalysisPanel({
             ) : (
               <div style={{ width: graphWidth, minWidth: "100%" }} className="h-full">
                 <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart data={displayData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                  <LineChart data={displayData} margin={{ top: 12, right: 10, left: 0, bottom: 2 }}>
+                    <CartesianGrid strokeDasharray="4 4" className="stroke-border/35" />
                     <XAxis dataKey="time" tick={{ fontSize: 9 }} type="number"
                       domain={[0, Math.max(finalTime, 0.5)]}
                       ticks={xTicks}
                       tickFormatter={formatAxisNumber}
                       label={{ value: "Time (s)", position: "bottom", fontSize: 9, offset: -5 }} />
-                    <YAxis tick={{ fontSize: 9 }}
-                      domain={[Math.floor(yMin - 8), Math.ceil(yMax + 8)]}
+                    <YAxis hide
+                      domain={yDomain}
+                      ticks={yTicks}
                       tickFormatter={(value) => `${Math.round(Number(value))}`}
                       label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }} />
                     <ReferenceLine y={atmosphericTemp} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5"
@@ -410,16 +500,32 @@ export default function ThermalAnalysisPanel({
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Line type="monotone" dataKey="temp"
                       stroke={isCoolingCurve ? "hsl(210, 100%, 50%)" : "hsl(var(--primary))"}
-                      strokeWidth={2.5} dot={{ r: 2.5, strokeWidth: 0 }}
+                      strokeWidth={3} dot={{ r: 2.5, strokeWidth: 0 }}
                       activeDot={{ r: 4 }} isAnimationActive={false} />
                   </LineChart>
                 </ChartContainer>
               </div>
             )}
           </div>
+            <div className="hidden">
+              <div>
+                <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Temp</p>
+                <p className="text-[8px] text-muted-foreground">°C</p>
+              </div>
+              {yTicks.slice().reverse().map((tick) => (
+                <div key={tick} className="flex items-center justify-between gap-1">
+                  <span className="h-px w-2 bg-border" />
+                  <span className="font-mono text-[10px] text-foreground">{formatAxisNumber(tick)}</span>
+                </div>
+              ))}
+              <div className="rounded border border-muted-foreground/20 bg-muted/30 px-1 py-0.5 text-center font-mono text-[9px] text-muted-foreground">
+                env {atmosphericTemp}°
+              </div>
+            </div>
+          </div>
           {dataPoints.length > 0 && (
             <p className="text-[9px] text-muted-foreground text-center">
-              {displayData.length} points · Newton cooling model · Excel exports as line graph
+              Newton cooling: T(t) = Tenv + (Tpeak - Tenv)e^(-kt)
             </p>
           )}
         </div>
