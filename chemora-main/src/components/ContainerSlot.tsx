@@ -2,13 +2,14 @@ import { ContainerState } from "./EquipmentArea";
 import ReactionEffect from "./ReactionEffect";
 import ChemicalChip from "./ChemicalChip";
 import ApparatusTooltip from "./ApparatusTooltip";
-import { X, Thermometer, Droplets, Wind, Filter, Flame, Cloud } from "lucide-react";
+import { X, Thermometer, Droplets, Filter, Flame, Cloud } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/slider";
 
 interface ContainerSlotProps {
   container: ContainerState;
   isOver: boolean;
+  selectionRole?: "source" | "target" | null;
   hasSelectedItem?: boolean;
   onDragOver: () => void;
   onDragLeave: () => void;
@@ -18,6 +19,8 @@ interface ContainerSlotProps {
   onRemove: () => void;
   onBurnerTempChange?: (temp: number) => void;
   onCoolingTargetChange?: (temp: number) => void;
+  activeMetalId?: string | null;
+  onMetalSelect?: (chemicalId: string) => void;
 }
 
 const CONTAINER_SHAPES: Record<string, string> = {
@@ -31,11 +34,17 @@ function getContainerShape(apparatusId: string) {
   return CONTAINER_SHAPES[apparatusId] || "rounded-b-2xl rounded-t-sm";
 }
 
+function getSelectionColor(selectionRole: "source" | "target" | null) {
+  if (selectionRole === "source") return "hsl(217, 91%, 60%)";
+  if (selectionRole === "target") return "hsl(48, 96%, 53%)";
+  return null;
+}
+
 function getContainerSize(apparatusId: string) {
-  if (apparatusId === "test-tube") return "w-20 h-52";
-  if (apparatusId === "round-flask") return "w-40 h-44";
-  if (apparatusId === "conical-flask") return "w-40 h-48";
-  return "w-36 h-48";
+  if (apparatusId === "test-tube") return "w-16 h-44 sm:w-20 sm:h-52";
+  if (apparatusId === "round-flask") return "w-32 h-36 sm:w-40 sm:h-44";
+  if (apparatusId === "conical-flask") return "w-32 h-40 sm:w-40 sm:h-48";
+  return "w-28 h-40 sm:w-36 sm:h-48";
 }
 
 function getMixedColor(chemicals: { color: string }[], solutionColor: string | null): string {
@@ -96,7 +105,7 @@ function getConicalLiquidPath(fillPercent: number): string {
 }
 
 export default function ContainerSlot({
-  container, isOver, hasSelectedItem, onDragOver, onDragLeave, onDrop, onClick, onClear, onRemove, onBurnerTempChange, onCoolingTargetChange,
+  container, isOver, selectionRole = null, hasSelectedItem, onDragOver, onDragLeave, onDrop, onClick, onClear, onRemove, onBurnerTempChange, onCoolingTargetChange, activeMetalId, onMetalSelect,
 }: ContainerSlotProps) {
   const shape = getContainerShape(container.apparatus.id);
   const size = getContainerSize(container.apparatus.id);
@@ -106,11 +115,14 @@ export default function ContainerSlot({
   const hasBurner = container.attachedApparatuses.some((a) => a.id === "bunsen-burner");
   const hasThermometer = container.attachedApparatuses.some((a) => a.id === "thermometer");
   const hasPHMeter = container.attachedApparatuses.some((a) => a.id === "ph-meter");
-  const hasPhaseChanges = container.phaseChanges.length > 0;
+  const hasGasRelease = container.phaseChanges.some((pc) => pc.to === "gas");
   const hasFilter = container.filterSeparation !== null;
   const hasGasJar = container.attachedApparatuses.some((a) => a.id === "gas-jar");
   const hasCollectedGases = container.collectedGases.length > 0;
   const hasCoolingBath = container.attachedApparatuses.some((a) => a.id === "cooling-bath");
+  const isReactionActive = !!container.reaction && !container.reactionComplete;
+  const burnerLocked = hasBurner && isReactionActive;
+  const selectionColor = getSelectionColor(selectionRole);
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -130,17 +142,17 @@ export default function ContainerSlot({
             <Droplets className="w-3 h-3" /> pH {container.pH}
           </span>
         )}
-        {hasPhaseChanges && (
+        {hasGasRelease && (
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="flex items-center gap-0.5 text-[10px] font-mono text-primary cursor-help">
-                  <Wind className="w-3 h-3" /> Phase Δ
+                  Gas released
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-64 space-y-1">
-                <p className="font-semibold text-xs">Phase Changes</p>
-                {container.phaseChanges.map((pc, i) => (
+                <p className="font-semibold text-xs">Gas release</p>
+                {container.phaseChanges.filter((pc) => pc.to === "gas").map((pc, i) => (
                   <p key={i} className="text-[11px] text-muted-foreground">
                     {pc.description}
                   </p>
@@ -199,7 +211,7 @@ export default function ContainerSlot({
       </div>
 
       {/* Gas collection animation */}
-      {hasGasJar && hasPhaseChanges && container.phaseChanges.some((pc) => pc.to === "gas") && (
+      {hasGasJar && hasGasRelease && (
         <div className="flex gap-1 -mb-1">
           {[0, 1, 2, 3, 4].map((i) => (
             <div
@@ -213,7 +225,7 @@ export default function ContainerSlot({
       )}
 
       {/* Steam / evaporation effect (when no gas jar) */}
-      {!hasGasJar && hasPhaseChanges && container.phaseChanges.some((pc) => pc.to === "gas") && (
+      {!hasGasJar && hasGasRelease && (
         <div className="flex gap-1 -mb-1">
           {[0, 1, 2, 3].map((i) => (
             <div
@@ -235,7 +247,11 @@ export default function ContainerSlot({
         className={`relative ${size} transition-all duration-300 flex flex-col items-center justify-end ${
           isConicalFlask ? "overflow-visible" : `overflow-hidden border-2 ${shape}`
         } ${
-          isOver ? "border-primary glow-primary scale-105" : hasSelectedItem ? "border-primary/40 hover:border-primary hover:scale-[1.02] cursor-pointer" : "border-border hover:border-muted-foreground/30"
+          selectionRole && !isConicalFlask
+            ? selectionRole === "source"
+              ? "border-blue-500 shadow-[0_0_12px_hsl(217_91%_60%/0.28)]"
+              : "border-yellow-400 shadow-[0_0_12px_hsl(48_96%_53%/0.28)]"
+            : isOver ? "border-primary glow-primary scale-105" : hasSelectedItem ? "border-primary/40 hover:border-primary hover:scale-[1.02] cursor-pointer" : "border-border hover:border-muted-foreground/30"
         }`}
         style={isConicalFlask ? undefined : { background: "hsl(220, 18%, 10%)" }}
       >
@@ -254,14 +270,14 @@ export default function ContainerSlot({
               <path
                 d={getConicalLiquidPath(liquidFillPercent)}
                 fill={liquidColor}
-                opacity={hasPhaseChanges && container.phaseChanges.some((pc) => pc.to === "gas") ? 0.3 : 0.6}
+                opacity={hasGasRelease ? 0.3 : 0.6}
               />
             )}
             <path
               d="M55 4H105V44C105 50 108 55 111 61L154 186Q156 190 151 190H9Q4 190 6 186L49 61C52 55 55 50 55 44Z"
               fill="none"
-              stroke={isOver ? "hsl(var(--primary))" : hasSelectedItem ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}
-              strokeWidth="2"
+              stroke={selectionColor ?? (isOver ? "hsl(var(--primary))" : hasSelectedItem ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))")}
+              strokeWidth={selectionColor ? "2.5" : "2"}
               vectorEffect="non-scaling-stroke"
               strokeLinejoin="round"
             />
@@ -275,7 +291,7 @@ export default function ContainerSlot({
             style={{
               height: `${liquidFillPercent}%`,
               backgroundColor: liquidColor,
-              opacity: hasPhaseChanges && container.phaseChanges.some((pc) => pc.to === "gas") ? 0.3 : 0.6,
+              opacity: hasGasRelease ? 0.3 : 0.6,
             }}
           />
         )}
@@ -302,7 +318,12 @@ export default function ContainerSlot({
           <div className={`relative z-10 w-full flex flex-col items-center gap-1 ${isConicalFlask ? "px-5 pb-4 pt-12" : "p-2"}`}>
             <div className="flex flex-col items-center gap-0.5 w-full">
               {container.chemicals.map((c, i) => (
-                <ChemicalChip key={i} chemical={c} />
+                <ChemicalChip
+                  key={i}
+                  chemical={c}
+                  isActiveMetal={c.category === "metal" && c.id === activeMetalId}
+                  onClick={c.category === "metal" ? () => onMetalSelect?.(c.id) : undefined}
+                />
               ))}
             </div>
             <div className="text-[8px] text-muted-foreground/60 opacity-75">→ {container.reaction.products}</div>
@@ -313,16 +334,21 @@ export default function ContainerSlot({
         {(!container.showEffect || !container.reaction) && (
           <div className={`relative z-10 w-full flex flex-col items-center gap-0.5 ${isConicalFlask ? "px-5 pb-4 pt-12" : "p-2"}`}>
             {container.chemicals.map((c, i) => (
-              <ChemicalChip key={i} chemical={c} />
+              <ChemicalChip
+                key={i}
+                chemical={c}
+                isActiveMetal={c.category === "metal" && c.id === activeMetalId}
+                onClick={c.category === "metal" ? () => onMetalSelect?.(c.id) : undefined}
+              />
             ))}
           </div>
         )}
 
         {/* Attached apparatus badges */}
         {container.attachedApparatuses.length > 0 && (
-          <div className={`absolute left-1 right-1 flex flex-wrap gap-0.5 z-20 ${isConicalFlask ? "-top-1 justify-center" : "top-1"}`}>
+          <div className={`absolute left-1 right-1 flex flex-row flex-wrap justify-start gap-1 z-20 ${isConicalFlask ? "-top-1" : "top-1"}`}>
             {container.attachedApparatuses.map((a) => (
-              <ApparatusTooltip key={a.id} apparatus={a} />
+              <ApparatusTooltip key={a.id} apparatus={a} locked={a.id === "bunsen-burner" && burnerLocked} />
             ))}
           </div>
         )}
@@ -337,7 +363,7 @@ export default function ContainerSlot({
 
       {/* Bunsen burner flame visual */}
       {hasBurner && (
-        <div className="flex flex-col items-center gap-1 -mt-1">
+        <div className={`flex flex-col items-center gap-1 -mt-1 ${burnerLocked ? "opacity-60" : ""}`}>
           <div className="flex gap-0.5">
             {[0, 1, 2].map((i) => (
               <div
@@ -359,6 +385,7 @@ export default function ContainerSlot({
               max={600}
               step={10}
               onValueChange={(v) => onBurnerTempChange?.(v[0])}
+              disabled={burnerLocked}
               className="flex-1"
             />
           </div>

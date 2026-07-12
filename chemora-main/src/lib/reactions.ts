@@ -129,6 +129,20 @@ export function findReactionForChemicals(chemicals: Chemical[]): Reaction | null
     .sort((a, b) => b.reactants.length - a.reactants.length)[0] ?? null;
 }
 
+export function findReactionForChemicalsWithRequiredChemical(
+  chemicals: Chemical[],
+  requiredChemical: Chemical
+): Reaction | null {
+  const requiredKeys = chemicalKeys(requiredChemical);
+
+  return REACTIONS
+    .filter((reaction) =>
+      reaction.reactants.some((reactant) => requiredKeys.has(normalizeReactionKey(reactant))) &&
+      reactionMatchesChemicals(reaction, chemicals)
+    )
+    .sort((a, b) => b.reactants.length - a.reactants.length)[0] ?? null;
+}
+
 // Find reactions where heat is a reactant (for thermal decomposition, etc.)
 export function findReactionWithHeat(formula: string): Reaction | null {
   return REACTIONS.find(

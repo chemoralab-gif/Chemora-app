@@ -7,7 +7,7 @@ import { useSwipe } from "@/hooks/use-swipe";
 import type { SelectedItem } from "@/pages/Index";
 import type { Chemical, Apparatus, ExperimentStep } from "@/lib/reactions";
 import type { CalorimetryData } from "@/components/types/thermal";
-import { X } from "lucide-react";
+import { Atom, Beaker, Thermometer, X } from "lucide-react";
 
 interface MobileSwipeLayoutProps {
   onDragStart: (chemical: Chemical) => void;
@@ -31,6 +31,12 @@ interface MobileSwipeLayoutProps {
   waterTemp: number;
   currentReactionTemp: number | null;
   isActive: boolean;
+  deskClearSignal: number;
+  guideSearch?: string;
+  guideTab?: "chemicals" | "apparatus";
+  guideTargetId?: string;
+  guideMessage?: string;
+  guideComplete?: boolean;
 }
 
 export default function MobileSwipeLayout({
@@ -55,6 +61,12 @@ export default function MobileSwipeLayout({
   waterTemp,
   currentReactionTemp,
   isActive,
+  deskClearSignal,
+  guideSearch,
+  guideTab,
+  guideTargetId,
+  guideMessage,
+  guideComplete,
 }: MobileSwipeLayoutProps) {
   useEffect(() => {
     window.requestAnimationFrame(() => window.__chemoraHideLoadingScreen?.());
@@ -95,6 +107,16 @@ export default function MobileSwipeLayout({
     true
   );
 
+  useEffect(() => {
+    if (guideSearch && !guideComplete) {
+      const timeout = window.setTimeout(() => {
+        setPanelPosition(-1);
+        finishSwipeHints();
+      }, 180);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [guideComplete, guideSearch]);
+
   const handleDismissHint = () => {
     finishSwipeHints();
   };
@@ -120,11 +142,11 @@ export default function MobileSwipeLayout({
     <div className="flex flex-1 overflow-hidden relative bg-background">
       {/* Left Panel - Chemicals */}
       <div
-        className={`absolute inset-y-0 left-0 w-full z-20 transition-all duration-300 ease-out overflow-y-auto ${
+        className={`absolute bottom-14 left-0 top-0 z-30 w-80 max-w-[88vw] transition-all duration-500 ease-out overflow-y-auto shadow-2xl ${
           panelPosition === -1 ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="min-h-full w-full bg-background">
+        <div className="min-h-full w-80 max-w-full bg-background">
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="font-semibold text-foreground">Chemicals & Tools</h2>
           </div>
@@ -137,14 +159,19 @@ export default function MobileSwipeLayout({
             }}
             selectedItem={selectedItem}
             onSelect={handlePaletteSelect}
+            guideSearch={guideSearch}
+            guideTab={guideTab}
+            guideTargetId={guideTargetId}
+            guideMessage={guideMessage}
+            guideComplete={guideComplete}
           />
         </div>
       </div>
 
       {/* Center Panel - Workspace */}
       <div
-        className={`absolute inset-y-0 left-0 w-full z-10 transition-all duration-300 ease-out ${
-          panelPosition === 0 ? "translate-x-0" : panelPosition === -1 ? "translate-x-full" : "-translate-x-full"
+        className={`absolute bottom-14 left-0 top-0 w-full z-10 transition-all duration-500 ease-out ${
+          panelPosition === 1 ? "-translate-x-full" : "translate-x-0"
         }`}
       >
         <div className="w-full h-full flex flex-col relative">
@@ -187,7 +214,7 @@ export default function MobileSwipeLayout({
 
       {/* Right Panel - Thermal Analysis */}
       <div
-        className={`absolute inset-y-0 left-0 w-full z-20 transition-all duration-300 ease-out overflow-hidden ${
+        className={`absolute bottom-14 left-0 top-0 w-full z-20 transition-all duration-500 ease-out overflow-hidden ${
           panelPosition === 1 ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -200,7 +227,35 @@ export default function MobileSwipeLayout({
             onAtmosphericTempChange={onAtmosphericTempChange}
             onPressureChange={onPressureChange}
             isActive={isActive}
+            deskClearSignal={deskClearSignal}
           />
+        </div>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-2 py-2 backdrop-blur-md">
+        <div className="grid grid-cols-3 gap-1 rounded-md bg-background/60 p-1">
+          {[
+            { label: "Chemicals", icon: Atom, value: -1 },
+            { label: "Desk", icon: Beaker, value: 0 },
+            { label: "Thermal", icon: Thermometer, value: 1 },
+          ].map(({ label, icon: Icon, value }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                setPanelPosition(value);
+                finishSwipeHints();
+              }}
+              className={`flex h-9 items-center justify-center gap-1.5 rounded text-[11px] font-semibold transition-colors ${
+                panelPosition === value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
       </div>
 

@@ -1,54 +1,7 @@
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import type { IncomingMessage } from "http";
-import { handleAiRequest } from "./ai/ai-core";
-
-const readJsonBody = (req: IncomingMessage) =>
-  new Promise<unknown>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => {
-      try {
-        const rawBody = Buffer.concat(chunks).toString("utf8");
-        resolve(rawBody ? JSON.parse(rawBody) : {});
-      } catch (error) {
-        reject(error);
-      }
-    });
-    req.on("error", reject);
-  });
-
-const chemoraDevApiPlugin = (mode: string): Plugin => ({
-  name: "chemora-dev-api",
-  configureServer(server) {
-    const env = loadEnv(mode, process.cwd(), "");
-
-    server.middlewares.use("/api/ai", async (req, res) => {
-      if (req.method !== "POST") {
-        res.statusCode = 405;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({ error: "Method not allowed" }));
-        return;
-      }
-
-      try {
-        const body = await readJsonBody(req);
-        const result = await handleAiRequest(body, env);
-
-        res.statusCode = result.status;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify(result.body));
-      } catch {
-        res.statusCode = 500;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({ error: "Chemora API request failed" }));
-      }
-    });
-  },
-});
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -61,7 +14,6 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    chemoraDevApiPlugin(mode),
     mode === "development" && process.env.VITE_COMPONENT_TAGGER === "true" && componentTagger(),
   ].filter(Boolean),
   resolve: {

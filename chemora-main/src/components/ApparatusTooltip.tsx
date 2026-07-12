@@ -3,6 +3,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 
 interface ApparatusTooltipProps {
   apparatus: Apparatus;
+  locked?: boolean;
 }
 
 const APPARATUS_DETAILS: Record<string, { temperature?: string; usage?: string; safety?: string }> = {
@@ -21,15 +22,19 @@ const APPARATUS_DETAILS: Record<string, { temperature?: string; usage?: string; 
   tongs: { usage: "Handle hot containers", safety: "Check grip before lifting" },
 };
 
-export default function ApparatusTooltip({ apparatus }: ApparatusTooltipProps) {
+export default function ApparatusTooltip({ apparatus, locked = false }: ApparatusTooltipProps) {
   const details = APPARATUS_DETAILS[apparatus.id];
 
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="max-w-24 truncate text-[9px] font-medium text-primary bg-secondary/80 border border-primary/20 rounded px-1.5 py-0.5 cursor-help hover:bg-secondary transition-colors">
-            {apparatus.name}
+          <span
+            className={`flex h-6 w-6 items-center justify-center rounded-md border border-primary/20 bg-secondary/80 text-sm text-primary transition-colors hover:bg-secondary ${
+              locked ? "cursor-not-allowed opacity-80" : "cursor-help"
+            }`}
+          >
+            {apparatus.icon}
           </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-56 space-y-1 text-left">

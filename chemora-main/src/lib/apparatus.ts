@@ -19,7 +19,7 @@ export const APPARATUSES: Apparatus[] = [
   { id: "spatula", name: "Spatula", icon: "\u{1F944}", description: "Transfers small amounts of solid chemicals", category: "mixing" },
   { id: "glass-rod", name: "Glass Rod", icon: "\u{1FA84}", description: "Stirring rod for mixing solutions", category: "mixing" },
   { id: "safety-goggles", name: "Safety Goggles", icon: "\u{1F97D}", description: "Eye protection during experiments", category: "safety" },
-  { id: "tongs", name: "Tongs", icon: "\u{1F9BE}", description: "Holds hot containers safely", category: "safety" },
+  { id: "safety-shield", name: "Safety Shield", icon: "\u{1F6E1}\uFE0F", description: "Protective barrier for splash, flame, or blast hazards", category: "safety" },
   { id: "gas-jar", name: "Gas Collection Jar", icon: "\u{1FAD9}", description: "Captures evaporated gases when chemicals boil", category: "collection" },
 ];
 

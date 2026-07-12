@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Thermometer, Download, Trash2, Lock } from "lucide-react";
+import { Thermometer, Download, Trash2, Lock, Square, ChevronsRight } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -16,6 +16,7 @@ import {
   RECORD_INTERVAL_SEC,
 } from "@/lib/thermalCurve";
 import { exportThermalExcel } from "@/lib/excelThermalExport";
+import { ALL_CHEMICALS } from "@/lib/data/chemicals";
 
 interface MetalData {
   name: string;
@@ -24,6 +25,7 @@ interface MetalData {
 }
 
 const METALS: MetalData[] = [
+  { name: "Beryllium", symbol: "Be", specificHeat: 1.825 },
   { name: "Aluminium", symbol: "Al", specificHeat: 0.897 },
   { name: "Copper", symbol: "Cu", specificHeat: 0.385 },
   { name: "Iron", symbol: "Fe", specificHeat: 0.449 },
@@ -38,10 +40,14 @@ const METALS: MetalData[] = [
   { name: "Sodium", symbol: "Na", specificHeat: 1.228 },
   { name: "Potassium", symbol: "K", specificHeat: 0.757 },
   { name: "Calcium", symbol: "Ca", specificHeat: 0.647 },
+  { name: "Barium", symbol: "Ba", specificHeat: 0.204 },
+  { name: "Scandium", symbol: "Sc", specificHeat: 0.568 },
   { name: "Magnesium", symbol: "Mg", specificHeat: 1.023 },
   { name: "Chromium", symbol: "Cr", specificHeat: 0.449 },
   { name: "Manganese", symbol: "Mn", specificHeat: 0.479 },
   { name: "Cobalt", symbol: "Co", specificHeat: 0.421 },
+  { name: "Vanadium", symbol: "V", specificHeat: 0.489 },
+  { name: "Gallium", symbol: "Ga", specificHeat: 0.371 },
   { name: "Platinum", symbol: "Pt", specificHeat: 0.133 },
 ];
 
@@ -63,6 +69,7 @@ interface ThermalAnalysisPanelProps {
   onAtmosphericTempChange?: (temp: number) => void;
   onPressureChange?: (pressure: number) => void;
   isActive?: boolean;
+  deskClearSignal?: number;
 }
 
 const chartConfig = {
@@ -126,13 +133,17 @@ export default function ThermalAnalysisPanel({
   onAtmosphericTempChange,
   onPressureChange,
   isActive = false,
+  deskClearSignal = 0,
 }: ThermalAnalysisPanelProps) {
   const [metalMass, setMetalMass] = useState(50);
-  const [metalTemp, setMetalTemp] = useState(200);
+  const [metalTemp, setMetalTemp] = useState(25);
   const [waterMass, setWaterMass] = useState(100);
   const [atmosphericTemp, setAtmosphericTemp] = useState(25);
   const [pressure, setPressure] = useState(101.325);
   const [dataPoints, setDataPoints] = useState<ThermalDataPoint[]>([]);
+  const [graphStopped, setGraphStopped] = useState(false);
+  const [graphFollowingLatest, setGraphFollowingLatest] = useState(true);
+  const [hasNewGraphUpdates, setHasNewGraphUpdates] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [excelFileName, setExcelFileName] = useState("thermal_analysis");
   const timeRef = useRef(0);
@@ -140,6 +151,7 @@ export default function ThermalAnalysisPanel({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevReactionTempRef = useRef<number | null>(null);
   const graphScrollRef = useRef<HTMLDivElement>(null);
+  const lastDeskClearSignalRef = useRef(deskClearSignal);
 
   const metal = useMemo(() => {
     if (activeMetal) {
@@ -147,6 +159,12 @@ export default function ThermalAnalysisPanel({
     }
     return null;
   }, [activeMetal]);
+  const activeMetalChemical = useMemo(() => {
+    if (!activeMetal) return null;
+    return ALL_CHEMICALS.find((chemical) => chemical.category === "metal" && chemical.name.toLowerCase() === activeMetal.toLowerCase()) ?? null;
+  }, [activeMetal]);
+  const activeMetalSymbol = metal?.symbol ?? activeMetalChemical?.formula ?? "";
+  const activeMetalLabel = activeMetal ? `${activeMetalSymbol ? `${activeMetalSymbol} ` : ""}${activeMetal}` : null;
 
   const effectiveWaterTemp = waterTemp > atmosphericTemp ? waterTemp : atmosphericTemp;
 
@@ -185,6 +203,7 @@ export default function ThermalAnalysisPanel({
   useEffect(() => { onPressureChange?.(pressure); }, [pressure, onPressureChange]);
 
   useEffect(() => {
+    if (graphStopped) return;
     if (currentReactionTemp !== null) {
       const prev = prevReactionTempRef.current;
       const tempDiff = Math.abs(currentReactionTemp - atmosphericTemp);
@@ -197,9 +216,10 @@ export default function ThermalAnalysisPanel({
     } else {
       prevReactionTempRef.current = null;
     }
-  }, [currentReactionTemp, atmosphericTemp]);
+  }, [currentReactionTemp, atmosphericTemp, graphStopped]);
 
   useEffect(() => {
+    if (graphStopped) return;
     if (currentReactionTemp !== null && Math.abs(currentReactionTemp - atmosphericTemp) > 0.5) {
       if (!intervalRef.current) {
         timeRef.current += RECORD_INTERVAL_SEC;
@@ -228,21 +248,74 @@ export default function ThermalAnalysisPanel({
       lastTempRef.current = null;
     }
     return () => {};
-  }, [currentReactionTemp, atmosphericTemp]);
+  }, [currentReactionTemp, atmosphericTemp, graphStopped]);
 
   useEffect(() => {
-    if (graphScrollRef.current && displayData.length > 0) {
-      graphScrollRef.current.scrollLeft = graphScrollRef.current.scrollWidth;
+    if (deskClearSignal === lastDeskClearSignalRef.current) return;
+    lastDeskClearSignalRef.current = deskClearSignal;
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-  }, [displayData]);
+    lastTempRef.current = null;
+    prevReactionTempRef.current = null;
+    if (dataPoints.length > 0) setGraphStopped(true);
+  }, [dataPoints.length, deskClearSignal]);
+
+  useEffect(() => {
+    if (displayData.length === 0) {
+      setGraphFollowingLatest(true);
+      setHasNewGraphUpdates(false);
+      return;
+    }
+
+    if (graphFollowingLatest) {
+      window.requestAnimationFrame(() => {
+        const scrollEl = graphScrollRef.current;
+        if (!scrollEl) return;
+        scrollEl.scrollLeft = scrollEl.scrollWidth;
+        setHasNewGraphUpdates(false);
+      });
+    } else {
+      setHasNewGraphUpdates(true);
+    }
+  }, [displayData.length, graphFollowingLatest]);
 
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
 
   const handleClearGraph = useCallback(() => {
     setDataPoints([]);
+    setGraphStopped(false);
+    setGraphFollowingLatest(true);
+    setHasNewGraphUpdates(false);
     timeRef.current = 0;
     lastTempRef.current = null;
     prevReactionTempRef.current = null;
+  }, []);
+
+  const handleStopGraph = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setGraphStopped(true);
+  }, []);
+
+  const handleGraphScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const distanceFromLatest = target.scrollWidth - target.scrollLeft - target.clientWidth;
+    const atLatest = distanceFromLatest <= 12;
+    setGraphFollowingLatest(atLatest);
+    if (atLatest) setHasNewGraphUpdates(false);
+  }, []);
+
+  const returnGraphToLatest = useCallback(() => {
+    const scrollEl = graphScrollRef.current;
+    if (!scrollEl) return;
+    scrollEl.scrollTo({ left: scrollEl.scrollWidth, behavior: "smooth" });
+    setGraphFollowingLatest(true);
+    setHasNewGraphUpdates(false);
   }, []);
 
   const handleExportExcel = useCallback(async () => {
@@ -276,6 +349,12 @@ export default function ThermalAnalysisPanel({
   const yTicks = buildTemperatureTicks(yMin, yMax);
   const yDomain: [number, number] = [yTicks[0], yTicks[yTicks.length - 1]];
   const slidersLocked = isActive;
+  const graphIsRecording =
+    currentReactionTemp !== null &&
+    Math.abs(currentReactionTemp - atmosphericTemp) > 0.5 &&
+    !graphStopped;
+  const showGraphControl = dataPoints.length > 0;
+  const graphControlIsClear = graphStopped || !graphIsRecording;
 
   return (
     <div className="w-full md:w-80 border-l border-border bg-card/80 flex h-full min-h-0 flex-col overflow-hidden">
@@ -287,13 +366,10 @@ export default function ThermalAnalysisPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-scroll px-4 py-4 space-y-4 [scrollbar-gutter:stable]">
-        {metal && (
+        {activeMetalLabel && (
           <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Active Metal</p>
-            <p className="text-sm font-semibold text-foreground">{metal.symbol} · {metal.name}</p>
-            <p className="text-[10px] text-muted-foreground">
-              c = <span className="font-mono text-accent">{metal.specificHeat}</span> J/(g·°C)
-            </p>
+            <p className="text-sm font-semibold text-foreground">{activeMetalLabel}</p>
           </div>
         )}
 
@@ -341,7 +417,7 @@ export default function ThermalAnalysisPanel({
             <label className="text-xs font-medium text-foreground">Metal temp</label>
             <span className="text-xs font-mono text-accent">{metalTemp}°C</span>
           </div>
-          <Slider value={[metalTemp]} min={50} max={500} step={5}
+          <Slider value={[metalTemp]} min={0} max={200} step={5}
             onValueChange={(v) => { if (!slidersLocked) setMetalTemp(v[0]); }}
             disabled={slidersLocked} className={slidersLocked ? "opacity-50" : ""} />
         </div>
@@ -361,7 +437,7 @@ export default function ThermalAnalysisPanel({
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Calorimetry Result</p>
               <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                q lost ≈ q gained
+                q lost â‰ˆ q gained
               </span>
             </div>
 
@@ -386,12 +462,12 @@ export default function ThermalAnalysisPanel({
 
             <div className="rounded-md border border-border/70 bg-background/50 p-2 space-y-1.5">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Real-world formula</p>
-              <p className="font-mono text-[11px] leading-5 text-foreground">q = m c ΔT</p>
+              <p className="font-mono text-[11px] leading-5 text-foreground">q = m c Î”T</p>
               <p className="font-mono text-[11px] leading-5 text-foreground">
                 T<sub>eq</sub> = (m<sub>m</sub>c<sub>m</sub>T<sub>m</sub> + m<sub>w</sub>c<sub>w</sub>T<sub>w</sub>) / (m<sub>m</sub>c<sub>m</sub> + m<sub>w</sub>c<sub>w</sub>)
               </p>
               <p className="text-[10px] leading-5 text-muted-foreground">
-                Using c<sub>water</sub> = {C_WATER} J/(g·°C), {metal.name} c = {metal.specificHeat} J/(g·°C). Energy balance error: <span className="font-mono text-foreground">{formatJoules(energyBalanceError)}</span>.
+                Using c<sub>water</sub> = {C_WATER} J/(gÂ·°C), {metal.name} c = {metal.specificHeat} J/(gÂ·°C). Energy balance error: <span className="font-mono text-foreground">{formatJoules(energyBalanceError)}</span>.
               </p>
             </div>
           </div>
@@ -413,25 +489,37 @@ export default function ThermalAnalysisPanel({
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Temperature Graph</p>
-              {dataPoints.length > 0 && (
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1" onClick={handleClearGraph}>
-                  <Trash2 className="w-3 h-3" /> Clear
-                </Button>
-              )}
             </div>
             {dataPoints.length > 0 && (
-              <div className="flex items-center gap-1">
-                <input
-                  value={excelFileName}
-                  onChange={(event) => setExcelFileName(event.target.value)}
-                  className="h-6 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-[10px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
-                  placeholder="Excel file name"
-                  title="Excel file name"
-                />
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1"
-                  onClick={handleExportExcel} disabled={exporting}>
-                  <Download className="w-3 h-3" /> {exporting ? "..." : "Excel"}
-                </Button>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <input
+                    value={excelFileName}
+                    onChange={(event) => setExcelFileName(event.target.value)}
+                    className="h-6 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-[10px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+                    placeholder="Excel file name"
+                    title="Excel file name"
+                  />
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1"
+                    onClick={handleExportExcel} disabled={exporting}>
+                    <Download className="w-3 h-3" /> {exporting ? "..." : "Excel"}
+                  </Button>
+                </div>
+                {showGraphControl && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-7 w-full justify-center gap-1.5 rounded-md border text-[10px] font-semibold shadow-sm transition-all ${
+                      graphControlIsClear
+                        ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        : "border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                    }`}
+                    onClick={graphControlIsClear ? handleClearGraph : handleStopGraph}
+                  >
+                    {graphControlIsClear ? <Trash2 className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+                    {graphControlIsClear ? "Clear graph" : "Stop graph"}
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -441,7 +529,7 @@ export default function ThermalAnalysisPanel({
               ["Now", `${latestTemp.toFixed(1)}°C`, "text-primary"],
               ["Peak", `${peakTemp.toFixed(1)}°C`, "text-accent"],
               ["Low", `${lowestTemp.toFixed(1)}°C`, "text-foreground"],
-              ["Δ env", formatSignedTemp(deltaFromAmbient), deltaFromAmbient >= 0 ? "text-primary" : "text-blue-400"],
+              ["Î” env", formatSignedTemp(deltaFromAmbient), deltaFromAmbient >= 0 ? "text-primary" : "text-blue-400"],
             ].map(([label, value, color]) => (
               <div key={label} className="rounded-md border border-border bg-background/55 px-2 py-1.5">
                 <p className="text-[8px] uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -452,7 +540,7 @@ export default function ThermalAnalysisPanel({
 
           <div className="grid h-44 grid-cols-[2.75rem_minmax(0,1fr)] gap-1">
             <div className="h-full overflow-hidden rounded border border-border bg-background/35">
-              <ChartContainer config={chartConfig} className="h-full w-full">
+              <ChartContainer config={chartConfig} className="h-full w-full aspect-auto">
                 <LineChart data={[{ time: 0, temp: yDomain[0] }, { time: 1, temp: yDomain[1] }]} margin={{ top: 12, right: 0, left: 0, bottom: 2 }}>
                   <XAxis hide dataKey="time" />
                   <YAxis
@@ -461,52 +549,66 @@ export default function ThermalAnalysisPanel({
                     ticks={yTicks}
                     tickFormatter={(value) => `${Math.round(Number(value))}`}
                     width={40}
-                    label={{ value: "Â°C", position: "insideTopLeft", fontSize: 9 }}
+                    label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }}
                   />
                 </LineChart>
               </ChartContainer>
             </div>
-            <div ref={graphScrollRef} className="h-full min-w-0 overflow-x-scroll overflow-y-hidden [scrollbar-gutter:stable]">
-            {dataPoints.length === 0 ? (
-              <div className="h-full flex items-center justify-center border border-dashed border-border rounded">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart data={[{ time: 0, temp: atmosphericTemp }, { time: 60, temp: atmosphericTemp }]} margin={{ top: 12, right: 10, left: 0, bottom: 2 }}>
-                    <CartesianGrid strokeDasharray="4 4" className="stroke-border/35" />
-                    <XAxis dataKey="time" tick={{ fontSize: 9 }} label={{ value: "Time (s)", position: "bottom", fontSize: 9, offset: -5 }} />
-                    <YAxis hide domain={yDomain} ticks={yTicks}
-                      label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }} />
-                    <ReferenceLine y={atmosphericTemp} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5"
-                      label={{ value: `Tenv ${atmosphericTemp}°C`, fontSize: 8, fill: "hsl(var(--muted-foreground))" }} />
-                  </LineChart>
-                </ChartContainer>
+            <div className="relative h-full min-w-0">
+              <div
+                ref={graphScrollRef}
+                onScroll={handleGraphScroll}
+                className="h-full min-w-0 overflow-x-scroll overflow-y-hidden [scrollbar-gutter:stable]"
+              >
+                {dataPoints.length === 0 ? (
+                  <div className="h-full flex items-center justify-center border border-dashed border-border rounded">
+                    <ChartContainer config={chartConfig} className="h-full w-full aspect-auto">
+                      <LineChart data={[{ time: 0, temp: atmosphericTemp }, { time: 60, temp: atmosphericTemp }]} margin={{ top: 12, right: 10, left: 0, bottom: 2 }}>
+                        <CartesianGrid strokeDasharray="4 4" className="stroke-border/35" />
+                        <XAxis dataKey="time" tick={{ fontSize: 9 }} label={{ value: "Time (s)", position: "bottom", fontSize: 9, offset: -5 }} />
+                        <YAxis hide domain={yDomain} ticks={yTicks}
+                          label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }} />
+                        <ReferenceLine y={atmosphericTemp} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
+                      </LineChart>
+                    </ChartContainer>
+                  </div>
+                ) : (
+                  <div style={{ width: graphWidth, minWidth: "100%" }} className="h-full">
+                    <ChartContainer config={chartConfig} className="h-full w-full aspect-auto">
+                      <LineChart data={displayData} margin={{ top: 12, right: 10, left: 0, bottom: 2 }}>
+                        <CartesianGrid strokeDasharray="4 4" className="stroke-border/35" />
+                        <XAxis dataKey="time" tick={{ fontSize: 9 }} type="number"
+                          domain={[0, Math.max(finalTime, 0.5)]}
+                          ticks={xTicks}
+                          tickFormatter={formatAxisNumber}
+                          label={{ value: "Time (s)", position: "bottom", fontSize: 9, offset: -5 }} />
+                        <YAxis hide
+                          domain={yDomain}
+                          ticks={yTicks}
+                          tickFormatter={(value) => `${Math.round(Number(value))}`}
+                          label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }} />
+                        <ReferenceLine y={atmosphericTemp} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Line type="monotone" dataKey="temp"
+                          stroke={isCoolingCurve ? "hsl(210, 100%, 50%)" : "hsl(var(--primary))"}
+                          strokeWidth={3} dot={{ r: 2.5, strokeWidth: 0 }}
+                          activeDot={{ r: 4 }} isAnimationActive={false} />
+                      </LineChart>
+                    </ChartContainer>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div style={{ width: graphWidth, minWidth: "100%" }} className="h-full">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart data={displayData} margin={{ top: 12, right: 10, left: 0, bottom: 2 }}>
-                    <CartesianGrid strokeDasharray="4 4" className="stroke-border/35" />
-                    <XAxis dataKey="time" tick={{ fontSize: 9 }} type="number"
-                      domain={[0, Math.max(finalTime, 0.5)]}
-                      ticks={xTicks}
-                      tickFormatter={formatAxisNumber}
-                      label={{ value: "Time (s)", position: "bottom", fontSize: 9, offset: -5 }} />
-                    <YAxis hide
-                      domain={yDomain}
-                      ticks={yTicks}
-                      tickFormatter={(value) => `${Math.round(Number(value))}`}
-                      label={{ value: "°C", position: "insideTopLeft", fontSize: 9 }} />
-                    <ReferenceLine y={atmosphericTemp} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5"
-                      label={{ value: `${atmosphericTemp}°C`, fontSize: 8, fill: "hsl(var(--muted-foreground))" }} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line type="monotone" dataKey="temp"
-                      stroke={isCoolingCurve ? "hsl(210, 100%, 50%)" : "hsl(var(--primary))"}
-                      strokeWidth={3} dot={{ r: 2.5, strokeWidth: 0 }}
-                      activeDot={{ r: 4 }} isAnimationActive={false} />
-                  </LineChart>
-                </ChartContainer>
-              </div>
-            )}
-          </div>
+              {hasNewGraphUpdates && dataPoints.length > 0 && (
+                <button
+                  type="button"
+                  onClick={returnGraphToLatest}
+                  className="absolute bottom-2 right-2 z-20 flex h-5 w-5 items-center justify-center rounded bg-background/80 text-primary transition-colors hover:bg-primary/10"
+                  title="Jump to latest graph updates"
+                >
+                  <ChevronsRight className="h-3 w-3" />
+                </button>
+              )}
+            </div>
             <div className="hidden">
               <div>
                 <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Temp</p>
@@ -519,17 +621,14 @@ export default function ThermalAnalysisPanel({
                 </div>
               ))}
               <div className="rounded border border-muted-foreground/20 bg-muted/30 px-1 py-0.5 text-center font-mono text-[9px] text-muted-foreground">
-                env {atmosphericTemp}°
+                env {atmosphericTemp}Â°
               </div>
             </div>
           </div>
-          {dataPoints.length > 0 && (
-            <p className="text-[9px] text-muted-foreground text-center">
-              Newton cooling: T(t) = Tenv + (Tpeak - Tenv)e^(-kt)
-            </p>
-          )}
         </div>
       </div>
     </div>
   );
 }
+
+

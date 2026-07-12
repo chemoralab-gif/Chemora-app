@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import type { Chemical } from "@/lib/schemas/chemical";
 import { ALL_CHEMICALS as CHEMICALS } from "@/lib/data/chemicals";
 import { CHEMICAL_CATEGORIES, type Apparatus, APPARATUSES, APPARATUS_CATEGORIES } from "@/lib/apparatus";
 import { ELEMENT_SUBCATEGORIES } from "@/lib/elements";
-import { Search, FlaskConical, Wrench, Atom, Beaker, RadioTower } from "lucide-react";
+import { Search, FlaskConical, Wrench, Atom, Beaker, RadioTower, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -48,11 +48,60 @@ interface ChemicalPaletteProps {
   onApparatusDragStart: (apparatus: Apparatus) => void;
   selectedItem: SelectedItem;
   onSelect: (item: SelectedItem) => void;
+  guideSearch?: string;
+  guideTab?: "chemicals" | "apparatus";
+  guideTargetId?: string;
+  guideMessage?: string;
+  guideComplete?: boolean;
 }
 
-export default function ChemicalPalette({ onDragStart, onApparatusDragStart, selectedItem, onSelect }: ChemicalPaletteProps) {
+export default function ChemicalPalette({
+  onDragStart,
+  onApparatusDragStart,
+  selectedItem,
+  onSelect,
+  guideSearch,
+  guideTab,
+  guideTargetId,
+  guideMessage,
+  guideComplete = false,
+}: ChemicalPaletteProps) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("chemicals");
+  const typingTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (guideTab) setActiveTab(guideTab);
+  }, [guideTab]);
+
+  useEffect(() => {
+    if (typingTimeoutRef.current !== null) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (guideSearch === undefined) return;
+
+    setSearch("");
+    if (!guideSearch) return;
+
+    let index = 0;
+    const typeNext = () => {
+      index += 1;
+      setSearch(guideSearch.slice(0, index));
+      if (index < guideSearch.length) {
+        const delay = 8 + Math.floor(Math.random() * 12);
+        typingTimeoutRef.current = window.setTimeout(typeNext, delay);
+      }
+    };
+
+    typingTimeoutRef.current = window.setTimeout(typeNext, 25);
+    return () => {
+      if (typingTimeoutRef.current !== null) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+    };
+  }, [guideSearch]);
 
   const query = search.toLowerCase().trim();
 
@@ -65,7 +114,14 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
 
   const filteredApparatuses = useMemo(() => {
     if (!query) return APPARATUSES;
-    return APPARATUSES.filter((a) => a.name.toLowerCase().includes(query));
+    if (query === "container" || query === "containers") {
+      return APPARATUSES.filter((a) => a.category === "container");
+    }
+    return APPARATUSES.filter((a) =>
+      a.name.toLowerCase().includes(query) ||
+      a.category.toLowerCase().includes(query) ||
+      a.description.toLowerCase().includes(query)
+    );
   }, [query]);
 
   const groupedChemicals = useMemo(() => {
@@ -81,7 +137,7 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
   }, [filteredChemicals]);
 
   const groupedApparatuses = useMemo(() => {
-    const order = ["container", "heating", "measuring", "mixing", "filtering", "safety"];
+    const order = ["container", "heating", "measuring", "mixing", "filtering", "safety", "collection"];
     const grouped: Record<string, Apparatus[]> = {};
     for (const a of filteredApparatuses) {
       if (!grouped[a.category]) grouped[a.category] = [];
@@ -125,7 +181,7 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
   };
 
   return (
-    <div className="w-72 bg-card border-r border-border flex flex-col h-full">
+    <div className="w-80 max-w-full bg-card border-r border-border flex flex-col h-full">
       <div className="p-3 border-b border-border">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -133,9 +189,31 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search chemicals or apparatus…"
-            className="pl-8 h-8 text-xs bg-secondary/50 border-border"
+            className="h-8 bg-secondary/50 pl-8 pr-8 text-xs border-border"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title="Clear search"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
+        {guideMessage && (
+          <div
+            key={guideMessage}
+            className={`mt-2 animate-in slide-in-from-top-2 fade-in duration-300 rounded-md border px-2.5 py-2 text-[10px] font-medium leading-4 ${
+              guideComplete
+                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-400"
+                : "border-primary/25 bg-primary/10 text-primary"
+            }`}
+          >
+            {guideMessage}
+          </div>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
@@ -150,7 +228,7 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
 
         <TabsContent value="chemicals" className="flex-1 min-h-0 mt-0">
           <ScrollArea className="h-full">
-            <div className="p-3 pr-4 space-y-3">
+            <div className="p-3 pr-6 space-y-3">
               {groupedChemicals.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">No chemicals found</p>
               )}
@@ -180,6 +258,8 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
                             }}
                             className={`flex items-center gap-2 px-2 py-1 rounded-md bg-secondary/30 hover:bg-secondary cursor-pointer active:scale-[0.97] transition-all border ${
                               isChemicalSelected(chemical)
+                                ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                                : guideTargetId === chemical.id
                                 ? "border-primary bg-primary/10 ring-1 ring-primary/30"
                                 : "border-transparent hover:border-primary/20"
                             }`}
@@ -218,7 +298,7 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
 
         <TabsContent value="apparatus" className="flex-1 min-h-0 mt-0">
           <ScrollArea className="h-full">
-            <div className="p-3 pr-4 space-y-4">
+            <div className="p-3 pr-6 space-y-4">
               {groupedApparatuses.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">No apparatus found</p>
               )}
@@ -241,6 +321,8 @@ export default function ChemicalPalette({ onDragStart, onApparatusDragStart, sel
                         }}
                         className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md bg-secondary/30 hover:bg-secondary cursor-pointer active:scale-[0.97] transition-all border ${
                           isApparatusSelected(apparatus)
+                            ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                            : guideTargetId === apparatus.id
                             ? "border-primary bg-primary/10 ring-1 ring-primary/30"
                             : "border-transparent hover:border-primary/20"
                         }`}
