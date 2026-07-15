@@ -1,4 +1,4 @@
-import { useState, useCallback, lazy, Suspense, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef } from "react";
 import ChemicalPalette from "@/components/ChemicalPalette";
 import type { CalorimetryData } from "@/components/types/thermal";
 import type { Chemical, Apparatus, ExperimentStep } from "@/lib/reactions";
@@ -198,6 +198,13 @@ function textMatchesNeedle(value: string | undefined, needle: string): boolean {
   return normalizeTestText(value).includes(normalizeTestText(needle));
 }
 
+const CHEMICAL_BY_TEST_TEXT = new Map<string, Chemical>();
+for (const chemical of ALL_CHEMICALS) {
+  CHEMICAL_BY_TEST_TEXT.set(normalizeTestText(chemical.id), chemical);
+  CHEMICAL_BY_TEST_TEXT.set(normalizeTestText(chemical.name), chemical);
+  CHEMICAL_BY_TEST_TEXT.set(normalizeTestText(chemical.formula), chemical);
+}
+
 function stepHasChemicalGeneric(steps: ExperimentStep[], formulaOrName: string): boolean {
   const target = normalizeTestText(formulaOrName);
   const targetChemical = chemicalForReactant(formulaOrName);
@@ -213,12 +220,7 @@ function stepHasChemicalGeneric(steps: ExperimentStep[], formulaOrName: string):
 }
 
 function chemicalForReactant(reactant: string): Chemical | undefined {
-  const target = normalizeTestText(reactant);
-  return ALL_CHEMICALS.find((chemical) =>
-    normalizeTestText(chemical.formula) === target ||
-    normalizeTestText(chemical.name) === target ||
-    normalizeTestText(chemical.id) === target
-  );
+  return CHEMICAL_BY_TEST_TEXT.get(normalizeTestText(reactant));
 }
 
 function splitReactionProducts(products: string): string[] {
@@ -256,13 +258,28 @@ function reactionUsabilityScore(reaction: Reaction | undefined, productFormula: 
   return exactProduct + missingReactants * 10 + directBuildBonus + reaction.reactants.length;
 }
 
+const BEST_REACTION_CACHE = new Map<string, Reaction | null>();
+
 function bestReactionForProduct(formulaOrName: string): Reaction | undefined {
-  return ALL_REACTIONS
-    .filter((reaction) =>
-      splitReactionProducts(reaction.products).some((product) => textMatchesNeedle(product, formulaOrName)) ||
-      textMatchesNeedle(reaction.products, formulaOrName)
-    )
-    .sort((a, b) => reactionUsabilityScore(a, formulaOrName) - reactionUsabilityScore(b, formulaOrName))[0];
+  const key = normalizeTestText(formulaOrName);
+  const cached = BEST_REACTION_CACHE.get(key);
+  if (cached !== undefined) return cached ?? undefined;
+
+  let best: Reaction | undefined;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const reaction of ALL_REACTIONS) {
+    const matches = splitReactionProducts(reaction.products).some((product) => textMatchesNeedle(product, formulaOrName)) ||
+      textMatchesNeedle(reaction.products, formulaOrName);
+    if (!matches) continue;
+    const score = reactionUsabilityScore(reaction, formulaOrName);
+    if (score < bestScore) {
+      best = reaction;
+      bestScore = score;
+    }
+  }
+
+  BEST_REACTION_CACHE.set(key, best ?? null);
+  return best;
 }
 
 function buildTargetOptions(query: string): TestTarget[] {
@@ -306,6 +323,47 @@ function buildTargetOptions(query: string): TestTarget[] {
     seen.add(key);
     return true;
   }).sort((a, b) => optionMatchScore(a, query) - optionMatchScore(b, query) || a.label.localeCompare(b.label)).slice(0, 12);
+}
+
+interface ProductTargetFieldProps {
+  index: number;
+  slot: ProductSlot;
+  onQueryChange: (index: number, query: string) => void;
+  onSelect: (index: number, target: TestTarget) => void;
+}
+
+function ProductTargetField({ index, slot, onQueryChange, onSelect }: ProductTargetFieldProps) {
+  const deferredQuery = useDeferredValue(slot.query);
+  const options = useMemo(
+    () => slot.target ? [] : buildTargetOptions(deferredQuery),
+    [deferredQuery, slot.target]
+  );
+  const isBlank = !slot.target && !slot.query.trim();
+
+  return (
+    <div className={`relative min-w-24 flex-1 ${isBlank ? "opacity-60" : "opacity-100"}`}>
+      <input
+        value={slot.query}
+        onChange={(event) => onQueryChange(index, event.target.value)}
+        placeholder="Product"
+        className="h-8 w-full border-0 border-b border-primary/45 bg-transparent px-1 text-center text-xs font-medium text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+      />
+      {options.length > 0 && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-44 overflow-auto rounded-md border border-border bg-card p-1 shadow-xl">
+          {options.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => onSelect(index, option)}
+              className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-secondary"
+            >
+              <span className="min-w-0 truncate">{option.label}</span>
+              <span className="shrink-0 text-[9px] uppercase text-muted-foreground">{option.kind}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function targetsShareReaction(first: TestTarget | null, second: TestTarget | null): boolean {
@@ -878,34 +936,15 @@ const Index = () => {
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Products</label>
                 <div className="flex flex-wrap items-start gap-2">
-                  {productSlots.map((slot, index) => {
-                    const options = slot.target ? [] : buildTargetOptions(slot.query);
-                    const isBlank = !slot.target && !slot.query.trim();
-                    return (
-                      <div key={index} className={`relative min-w-24 flex-1 ${isBlank ? "opacity-60" : "opacity-100"}`}>
-                        <input
-                          value={slot.query}
-                          onChange={(event) => updateProductSlotQuery(index, event.target.value)}
-                          placeholder="Product"
-                          className="h-8 w-full border-0 border-b border-primary/45 bg-transparent px-1 text-center text-xs font-medium text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
-                        />
-                        {options.length > 0 && (
-                          <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-44 overflow-auto rounded-md border border-border bg-card p-1 shadow-xl">
-                            {options.map((option) => (
-                              <button
-                                key={option.id}
-                                onClick={() => selectProductSlotTarget(index, option)}
-                                className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-secondary"
-                              >
-                                <span className="min-w-0 truncate">{option.label}</span>
-                                <span className="shrink-0 text-[9px] uppercase text-muted-foreground">{option.kind}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {productSlots.map((slot, index) => (
+                    <ProductTargetField
+                      key={index}
+                      index={index}
+                      slot={slot}
+                      onQueryChange={updateProductSlotQuery}
+                      onSelect={selectProductSlotTarget}
+                    />
+                  ))}
                 </div>
               </div>
 
