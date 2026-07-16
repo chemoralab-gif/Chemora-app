@@ -33,6 +33,7 @@ import { Reaction } from "@/lib/schemas/reaction";
 // These reactions absorb heat from their surroundings (ΔH > 0)
 export const ENDOTHERMIC_REACTIONS: Reaction[] = [
   // ── Decomposition Reactions ──
+  { reactants: ["Fe₂O₃", "Heat"], products: "FeO + O₂", equation: "2Fe₂O₃ → 4FeO + O₂↑", effect: "gas-release", description: "On strong heating, iron(III) oxide loses oxygen and forms iron(II) oxide.", intensity: 4, enthalpyChange: 560, isExothermic: false, temperatureChange: -45, heatReleased: 0 },
   { reactants: ["CaCO₃", "Heat"], products: "CaO + CO₂", equation: "CaCO₃ → CaO + CO₂↑", effect: "gas-release", description: "Calcium carbonate decomposes on heating to produce calcium oxide and carbon dioxide gas. Requires high temperature input.", intensity: 5, enthalpyChange: 178, isExothermic: false, temperatureChange: -45, heatReleased: 0 },
   { reactants: ["H₂O₂", "Heat"], products: "H₂O + O₂", equation: "2H₂O₂ → 2H₂O + O₂↑", effect: "gas-release", description: "Hydrogen peroxide decomposes to water and oxygen gas. Requires energy input (unstable compound).", intensity: 3, enthalpyChange: 98, isExothermic: false, temperatureChange: -25, heatReleased: 0 },
   { reactants: ["AgCl", "light"], products: "Ag + Cl₂", equation: "2AgCl → 2Ag + Cl₂↑", effect: "color-change", description: "Silver chloride breaks down under UV light or heat to form silver metal and chlorine gas. Photochemical decomposition.", intensity: 4, enthalpyChange: 127, isExothermic: false, temperatureChange: -30, heatReleased: 0 },

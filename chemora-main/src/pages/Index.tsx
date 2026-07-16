@@ -284,29 +284,6 @@ function bestReactionForProduct(formulaOrName: string): Reaction | undefined {
 
 function buildTargetOptions(query: string): TestTarget[] {
   if (!normalizeTestText(query)) return [];
-  const chemicalOptions = ALL_CHEMICALS
-    .filter((chemical) => textMatchesNeedle(chemical.name, query) || textMatchesNeedle(chemical.formula, query))
-    .map((chemical) => ({
-      id: `chemical:${chemical.id}`,
-      kind: "chemical" as const,
-      label: chemical.name,
-      formula: chemical.formula,
-      reaction: bestReactionForProduct(chemical.formula),
-    }));
-  const reactantOptions = ALL_REACTIONS.flatMap((reaction) =>
-    reaction.reactants.flatMap((reactant) =>
-      splitReactionPart(reactant).map((part) => {
-        const chemical = chemicalForReactant(part);
-        return {
-          id: `reactant:${reaction.equation}:${part}`,
-          kind: "reactant" as const,
-          label: chemical?.name ?? part,
-          formula: chemical?.formula ?? part,
-          reaction,
-        };
-      })
-    )
-  ).filter((option) => textMatchesNeedle(option.label, query) || textMatchesNeedle(option.formula, query) || textMatchesNeedle(option.reaction.equation, query));
   const productOptions = ALL_REACTIONS.flatMap((reaction) =>
     splitReactionProducts(reaction.products).map((product) => ({
       id: `product:${reaction.equation}:${product}`,
@@ -317,7 +294,7 @@ function buildTargetOptions(query: string): TestTarget[] {
     }))
   ).filter((option) => textMatchesNeedle(option.label, query) || textMatchesNeedle(option.formula, query) || textMatchesNeedle(option.reaction.equation, query));
   const seen = new Set<string>();
-  return [...chemicalOptions, ...reactantOptions, ...productOptions].filter((option) => {
+  return productOptions.filter((option) => {
     const key = normalizeTestText(`${option.kind}:${option.formula}`);
     if (seen.has(key)) return false;
     seen.add(key);

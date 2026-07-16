@@ -109,7 +109,14 @@ export function findBestReaction(
         );
       });
 
-      for (const reaction of matchingReactions) {
+      // When a corrosion reaction exists for this pair, prefer it over duplicate
+      // high-energy combustion records. This keeps ordinary Fe + O₂ visibly
+      // rusting instead of incorrectly showing flames.
+      const contextualReactions = matchingReactions.some((reaction) => reaction.effect === "rust")
+        ? matchingReactions.filter((reaction) => reaction.effect === "rust")
+        : matchingReactions;
+
+      for (const reaction of contextualReactions) {
         const factors = calculateMatchingFactors(
           chemical1,
           chemical2,

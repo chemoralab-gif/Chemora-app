@@ -60,13 +60,23 @@ export default function ReactionEffect({ effect, intensity, indicatorColor }: Re
 
   if (effect === "rust") {
     return (
-      <div className="absolute inset-0 pointer-events-none z-20">
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 opacity-70 animate-pulse" 
-          style={{ background: "linear-gradient(to top, hsl(15, 60%, 35%), hsl(25, 50%, 45%), transparent)" }} />
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="absolute w-3 h-2 rounded-full opacity-60"
-            style={{ background: "hsl(15, 55%, 40%)", left: `${15 + i * 20}%`, bottom: `${20 + i * 8}%`, animationDelay: `${i * 0.5}s` }} />
-        ))}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-20">
+        {/* Clear water body */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-[58%]"
+          style={{
+            background: "linear-gradient(180deg, hsl(198 78% 72% / 0.72) 0%, hsl(202 75% 56% / 0.86) 100%)",
+          }}
+        />
+
+        {/* Rust diffuses through the lower water and settles at the base */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-[47%]"
+          style={{
+            background: "linear-gradient(180deg, hsl(25 68% 48% / 0.10) 0%, hsl(20 66% 42% / 0.32) 58%, hsl(15 62% 31% / 0.78) 100%)",
+          }}
+        />
+        <div className="absolute inset-x-[7%] bottom-[4%] h-[7%] rounded-[50%] bg-amber-950/55 blur-[2px]" />
       </div>
     );
   }

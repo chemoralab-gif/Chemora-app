@@ -35,6 +35,7 @@ export const ENDOTHERMIC_SUBSTANCES: Chemical[] = [
   
   // ── Reduction Reactions ──
   { id: "fe2o3", name: "Iron(III) Oxide", formula: "Fe₂O₃", color: "hsl(0, 70%, 40%)", state: "solid", category: "salt", reactivity: 3, stability: 9 },
+  { id: "feo", name: "Iron(II) Oxide", formula: "FeO", color: "hsl(100, 8%, 22%)", state: "solid", category: "salt", reactivity: 4, stability: 7 },
   { id: "al2o3", name: "Aluminium Oxide", formula: "Al₂O₃", color: "hsl(0, 0%, 90%)", state: "solid", category: "salt", reactivity: 2, stability: 9 },
   { id: "zno", name: "Zinc Oxide", formula: "ZnO", color: "hsl(0, 0%, 92%)", state: "solid", category: "salt", reactivity: 3, stability: 8 },
   { id: "cuoh", name: "Copper(II) Oxide", formula: "CuO", color: "hsl(0, 50%, 40%)", state: "solid", category: "salt", reactivity: 4, stability: 8 },
