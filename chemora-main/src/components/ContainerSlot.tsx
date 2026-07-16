@@ -315,7 +315,7 @@ export default function ContainerSlot({
 
         {/* During active reaction - show reactants */}
         {container.showEffect && container.reaction && !container.reactionComplete && container.chemicals.length > 0 && (
-          <div className={`relative z-10 w-full flex flex-col items-center gap-1 ${isConicalFlask ? "px-5 pb-4 pt-12" : "p-2"}`}>
+          <div className={`relative z-30 w-full flex flex-col items-center gap-1 ${isConicalFlask ? "px-5 pb-4 pt-12" : "p-2"}`}>
             <div className="flex flex-col items-center gap-0.5 w-full">
               {container.chemicals.map((c, i) => (
                 <ChemicalChip
@@ -323,6 +323,7 @@ export default function ContainerSlot({
                   chemical={c}
                   isActiveMetal={c.category === "metal" && c.id === activeMetalId}
                   onClick={c.category === "metal" ? () => onMetalSelect?.(c.id) : undefined}
+                  forceBlackText={container.reaction.effect === "rust"}
                 />
               ))}
             </div>

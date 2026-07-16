@@ -4,6 +4,7 @@ interface ChemicalChipProps {
   chemical: Chemical;
   isActiveMetal?: boolean;
   onClick?: () => void;
+  forceBlackText?: boolean;
 }
 
 function StateIcon({ state, color }: { state: string; color: string }) {
@@ -31,7 +32,7 @@ function StateIcon({ state, color }: { state: string; color: string }) {
   );
 }
 
-export default function ChemicalChip({ chemical, isActiveMetal = false, onClick }: ChemicalChipProps) {
+export default function ChemicalChip({ chemical, isActiveMetal = false, onClick, forceBlackText = false }: ChemicalChipProps) {
   const interactive = !!onClick;
   return (
     <button
@@ -41,7 +42,9 @@ export default function ChemicalChip({ chemical, isActiveMetal = false, onClick 
         event.stopPropagation();
         onClick();
       }}
-      className={`flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-mono text-foreground/80 transition-colors ${
+      className={`flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-mono transition-colors ${
+        forceBlackText ? "text-black" : "text-foreground/80"
+      } ${
         interactive ? "cursor-pointer hover:bg-primary/10 hover:text-primary" : "cursor-default"
       }`}
       title={interactive ? `Select ${chemical.name} for thermal analysis` : chemical.name}
