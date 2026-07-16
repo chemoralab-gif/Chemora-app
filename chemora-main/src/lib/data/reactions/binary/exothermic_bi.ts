@@ -47,13 +47,13 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["B", "O₂"], products: "B₂O₃", equation: "4B + 3O₂ → 2B₂O₃", effect: "fire", description: "Boron burns in oxygen with bright green flame producing boron oxide.", intensity: 7, enthalpyChange: -2509, isExothermic: true, temperatureChange: 398, heatReleased: 2509 },
   { reactants: ["Si", "O₂"], products: "SiO₂", equation: "Si + O₂ → SiO₂", effect: "fire", description: "Silicon burns in oxygen at high temperature producing silicon dioxide.", intensity: 6, enthalpyChange: -911, isExothermic: true, temperatureChange: 256, heatReleased: 911 },
   { reactants: ["Sn", "O₂"], products: "SnO₂", equation: "Sn + O₂ → SnO₂", effect: "fire", description: "Tin burns in oxygen producing tin dioxide.", intensity: 5, enthalpyChange: -580, isExothermic: true, temperatureChange: 198, heatReleased: 580 },
-  // ── ADDITION REACTIONS (30+ reactions) ──
+  // ── ADDITION REACTIONS ──
   { reactants: ["C₂H₄", "H₂"], products: "C₂H₆", equation: "C₂H₄ + H₂ → C₂H₆", effect: "bubbles", description: "Ethene adds hydrogen to form ethane. Hydrogenation reaction using catalyst.", intensity: 3, enthalpyChange: -137, isExothermic: true, temperatureChange: 42, heatReleased: 137 },
   { reactants: ["C₂H₂", "H₂"], products: "C₂H₄", equation: "C₂H₂ + H₂ → C₂H₄", effect: "bubbles", description: "Acetylene adds hydrogen to form ethene. Industrial hydrogenation.", intensity: 4, enthalpyChange: -175, isExothermic: true, temperatureChange: 58, heatReleased: 175 },
   { reactants: ["C₂H₄", "Br₂"], products: "C₂H₄Br₂", equation: "C₂H₄ + Br₂ → C₂H₄Br₂", effect: "color-change", description: "Ethene adds bromine, decolorizing the brown solution to colorless 1,2-dibromoethane.", intensity: 4, enthalpyChange: -184, isExothermic: true, temperatureChange: 61, heatReleased: 184 },
   { reactants: ["C₂H₂", "Cl₂"], products: "C₂H₂Cl₂", equation: "C₂H₂ + Cl₂ → C₂H₂Cl₂", effect: "gas-release", description: "Acetylene adds chlorine forming 1,2-dichloroethene.", intensity: 4, enthalpyChange: -198, isExothermic: true, temperatureChange: 68, heatReleased: 198 },
 
-  // ── METAL REACTIONS (50+ reactions) ──
+  // ── METAL REACTIONS ──
   { reactants: ["K", "Cl₂"], products: "KCl", equation: "2K + Cl₂ → 2KCl", effect: "explosion", description: "Potassium reacts vigorously with chlorine gas producing potassium chloride and intense heat.", intensity: 9, enthalpyChange: -715, isExothermic: true, temperatureChange: 325, heatReleased: 715 },
   { reactants: ["Na", "Cl₂"], products: "NaCl", equation: "2Na + Cl₂ → 2NaCl", effect: "fire", description: "Sodium reacts with chlorine gas with bright yellow flame.", intensity: 8, enthalpyChange: -413, isExothermic: true, temperatureChange: 189, heatReleased: 413 },
   { reactants: ["Fe", "O₂"], products: "Fe₃O₄", equation: "3Fe + 2O₂ → Fe₃O₄", effect: "fire", description: "Iron burns in oxygen with bright yellow-white flame producing iron oxide.", intensity: 7, enthalpyChange: -1118, isExothermic: true, temperatureChange: 298, heatReleased: 1118 },
@@ -65,14 +65,14 @@ export const EXOTHERMIC_REACTIONS: Reaction[] = [
   { reactants: ["Na", "O₂"], products: "Na₂O₂", equation: "2Na + O₂ → Na₂O₂", effect: "fire", description: "Sodium burns in oxygen forming sodium peroxide with yellow flame.", intensity: 6, enthalpyChange: -450, isExothermic: true, temperatureChange: 187, heatReleased: 450 },
   { reactants: ["K", "O₂"], products: "KO₂", equation: "K + O₂ → KO₂", effect: "explosion", description: "Potassium burns in oxygen forming potassium superoxide with explosive intensity.", intensity: 9, enthalpyChange: -284, isExothermic: true, temperatureChange: 187, heatReleased: 284 },
 
-  // ── MORE HALOGEN REACTIONS (40+ reactions) ──
+  // ── MORE HALOGEN REACTIONS ──
   { reactants: ["H₂", "I₂"], products: "2HI", equation: "H₂ + I₂ → 2HI", effect: "bubbles", description: "Hydrogen and iodine react reversibly to form hydrogen iodide. Reversible reaction.", intensity: 3, enthalpyChange: -11, isExothermic: true, temperatureChange: 2, heatReleased: 11 },
   { reactants: ["Cl₂", "S"], products: "S₂Cl₂", equation: "Cl₂ + S → S₂Cl₂", effect: "fire", description: "Chlorine reacts with sulfur forming sulfur monochloride.", intensity: 5, enthalpyChange: -181, isExothermic: true, temperatureChange: 65, heatReleased: 181 },
   { reactants: ["Br₂", "P"], products: "PBr₃", equation: "Br₂ + P → PBr₃", effect: "fire", description: "Bromine reacts with phosphorus forming phosphorus tribromide.", intensity: 6, enthalpyChange: -241, isExothermic: true, temperatureChange: 89, heatReleased: 241 },
   { reactants: ["I₂", "Na"], products: "NaI", equation: "I₂ + 2Na → 2NaI", effect: "fire", description: "Iodine reacts with sodium forming sodium iodide with purple smoke.", intensity: 6, enthalpyChange: -304, isExothermic: true, temperatureChange: 125, heatReleased: 304 },
   { reactants: ["F₂", "Ca"], products: "CaF₂", equation: "F₂ + Ca → CaF₂", effect: "explosion", description: "Fluorine reacts explosively with calcium producing calcium fluoride.", intensity: 9, enthalpyChange: -1220, isExothermic: true, temperatureChange: 425, heatReleased: 1220 },
 
-  // ── STRONG OXIDIZERS (35+ reactions) ──
+  // ── STRONG OXIDIZERS ──
   { reactants: ["C", "O₂"], products: "CO₂", equation: "C + O₂ → CO₂", effect: "fire", description: "Carbon burns in oxygen with bright red-white flame producing carbon dioxide.", intensity: 6, enthalpyChange: -394, isExothermic: true, temperatureChange: 145, heatReleased: 394 },
   { reactants: ["H₂", "O₂"], products: "H₂O", equation: "2H₂ + O₂ → 2H₂O", effect: "explosion", description: "Hydrogen and oxygen react explosively forming water. Squeaky pop test!", intensity: 8, enthalpyChange: -572, isExothermic: true, temperatureChange: 268, heatReleased: 572 },
   { reactants: ["C", "S"], products: "CS₂", equation: "C + 2S → CS₂", effect: "fire", description: "Carbon reacts with sulfur at high temperature forming carbon disulfide.", intensity: 6, enthalpyChange: -117, isExothermic: true, temperatureChange: 42, heatReleased: 117 },
